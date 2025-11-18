@@ -3,16 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hurricane Prediction Game - Proof of Concept</title>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <title>Hurricane Prediction Game</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 0;
         }
         .hurricane-icon {
             animation: spin 10s linear infinite;
@@ -24,22 +26,14 @@
         #map {
             height: 500px;
             border-radius: 0.5rem;
+            width: 100%;
         }
-        .legend {
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        .pulse {
+            animation: pulse 2s infinite;
         }
-        .legend-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 5px;
-        }
-        .legend-line {
-            width: 30px;
-            height: 3px;
-            margin-right: 8px;
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
         }
     </style>
 </head>
@@ -49,56 +43,38 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // API Configuration
-        // Update this URL when you deploy your backend
-        const API_BASE_URL = window.location.hostname === 'localhost' 
-            ? 'http://localhost:3000/api'
-            : '/api'; // Will use same domain in production
-        
-        const NHC_API_URL = `${API_BASE_URL}/storms/current`;
-        
-        // Helper function to convert wind speed to category
-        const getCategory = (windSpeed) => {
-            if (windSpeed >= 157) return 5;
-            if (windSpeed >= 130) return 4;
-            if (windSpeed >= 111) return 3;
-            if (windSpeed >= 96) return 2;
-            if (windSpeed >= 74) return 1;
-            return 0; // Tropical Storm or Depression
+        // Demo hurricane data
+        const DEMO_STORM = {
+            id: 'demo-2024',
+            name: "Hurricane Milton",
+            currentCategory: 3,
+            currentLat: 24.5,
+            currentLon: -82.3,
+            currentWindSpeed: 120,
+            currentPressure: 950,
+            status: "demo"
         };
 
-        // Helper function to parse NHC data
-        const parseNHCData = (nhcData) => {
-            if (!nhcData.activeStorms || nhcData.activeStorms.length === 0) {
-                return null;
-            }
+        const HISTORICAL_TRACK = [
+            { lat: 18.5, lon: -88.0, time: 'Oct 5, 12:00', category: 1, windSpeed: 80 },
+            { lat: 19.2, lon: -87.5, time: 'Oct 6, 00:00', category: 1, windSpeed: 85 },
+            { lat: 20.0, lon: -86.8, time: 'Oct 6, 12:00', category: 2, windSpeed: 100 },
+            { lat: 21.0, lon: -85.5, time: 'Oct 7, 00:00', category: 2, windSpeed: 105 },
+            { lat: 22.3, lon: -84.2, time: 'Oct 7, 12:00', category: 3, windSpeed: 115 },
+            { lat: 23.5, lon: -83.0, time: 'Oct 8, 00:00', category: 3, windSpeed: 120 },
+            { lat: 24.5, lon: -82.3, time: 'Oct 8, 12:00', category: 3, windSpeed: 120 }
+        ];
 
-            // Get the first active storm (you can modify this to select specific storms)
-            const storm = nhcData.activeStorms[0];
-            
-            return {
-                id: storm.id,
-                name: storm.name,
-                classification: storm.classification,
-                currentLat: parseFloat(storm.latitude),
-                currentLon: parseFloat(storm.longitude),
-                currentWindSpeed: parseInt(storm.intensity),
-                currentPressure: parseInt(storm.pressure),
-                currentCategory: getCategory(parseInt(storm.intensity)),
-                movement: storm.movement,
-                status: "active",
-                lastUpdate: storm.lastUpdate,
-                walletUrl: storm.wallet
-            };
-        };
+        const FORECAST_TRACK = [
+            { lat: 24.5, lon: -82.3, time: 'Oct 8, 12:00', category: 3, windSpeed: 120 },
+            { lat: 25.8, lon: -82.0, time: 'Oct 9, 00:00', category: 4, windSpeed: 135 },
+            { lat: 27.2, lon: -82.5, time: 'Oct 9, 12:00', category: 4, windSpeed: 140 },
+            { lat: 28.5, lon: -82.8, time: 'Oct 10, 00:00', category: 3, windSpeed: 125 },
+            { lat: 29.5, lon: -83.0, time: 'Oct 10, 12:00', category: 2, windSpeed: 100 }
+        ];
 
         function HurricaneGameApp() {
-            const [activeStorm, setActiveStorm] = useState(null);
-            const [historicalTrack, setHistoricalTrack] = useState([]);
-            const [forecastTrack, setForecastTrack] = useState([]);
-            const [forecastCone, setForecastCone] = useState([]);
-            const [loading, setLoading] = useState(true);
-            const [error, setError] = useState(null);
+            const [activeStorm] = useState(DEMO_STORM);
             const [predictions, setPredictions] = useState([]);
             const [userPrediction, setUserPrediction] = useState({
                 username: '',
@@ -113,101 +89,9 @@
             const [submitted, setSubmitted] = useState(false);
             const [map, setMap] = useState(null);
 
-            // Fetch active storms from NHC API
-            useEffect(() => {
-                const fetchStormData = async () => {
-                    try {
-                        setLoading(true);
-                        const response = await fetch(NHC_API_URL);
-                        
-                        if (!response.ok) {
-                            throw new Error('Failed to fetch storm data');
-                        }
-
-                        const data = await response.json();
-                        const storm = parseNHCData(data);
-
-                        if (!storm) {
-                            // No active storms - use demo mode
-                            setError('No active storms at this time. Showing demo data.');
-                            useDemoData();
-                        } else {
-                            setActiveStorm(storm);
-                            // Fetch detailed track data if available
-                            await fetchStormDetails(storm);
-                        }
-                    } catch (err) {
-                        console.error('Error fetching NHC data:', err);
-                        setError('Unable to load live data. Showing demo data.');
-                        useDemoData();
-                    } finally {
-                        setLoading(false);
-                    }
-                };
-
-                const useDemoData = () => {
-                    // Fallback to demo data if API fails or no active storms
-                    setActiveStorm({
-                        id: 'demo-001',
-                        name: "Demo Hurricane",
-                        currentCategory: 3,
-                        currentLat: 24.5,
-                        currentLon: -82.3,
-                        currentWindSpeed: 120,
-                        currentPressure: 950,
-                        status: "demo",
-                        lastUpdate: new Date().toISOString()
-                    });
-
-                    setHistoricalTrack([
-                        { lat: 18.5, lon: -88.0, time: '2024-10-05 12:00', category: 1, windSpeed: 80 },
-                        { lat: 19.2, lon: -87.5, time: '2024-10-06 00:00', category: 1, windSpeed: 85 },
-                        { lat: 20.0, lon: -86.8, time: '2024-10-06 12:00', category: 2, windSpeed: 100 },
-                        { lat: 21.0, lon: -85.5, time: '2024-10-07 00:00', category: 2, windSpeed: 105 },
-                        { lat: 22.3, lon: -84.2, time: '2024-10-07 12:00', category: 3, windSpeed: 115 },
-                        { lat: 23.5, lon: -83.0, time: '2024-10-08 00:00', category: 3, windSpeed: 120 },
-                        { lat: 24.5, lon: -82.3, time: '2024-10-08 12:00', category: 3, windSpeed: 120 }
-                    ]);
-
-                    setForecastTrack([
-                        { lat: 24.5, lon: -82.3, time: '2024-10-08 12:00', category: 3, windSpeed: 120 },
-                        { lat: 25.8, lon: -82.0, time: '2024-10-09 00:00', category: 4, windSpeed: 135 },
-                        { lat: 27.2, lon: -82.5, time: '2024-10-09 12:00', category: 4, windSpeed: 140 },
-                        { lat: 28.5, lon: -82.8, time: '2024-10-10 00:00', category: 3, windSpeed: 125 },
-                        { lat: 29.5, lon: -83.0, time: '2024-10-10 12:00', category: 2, windSpeed: 100 }
-                    ]);
-
-                    setForecastCone([
-                        [24.5, -82.3], [25.5, -81.5], [27.0, -81.0], [28.8, -81.5],
-                        [30.0, -82.0], [30.2, -83.5], [29.0, -84.0], [27.5, -83.8],
-                        [26.0, -83.5], [24.5, -82.3]
-                    ]);
-                };
-
-                const fetchStormDetails = async (storm) => {
-                    // In production, you would fetch detailed track/forecast data here
-                    // For now, we'll use sample data structure that would come from NHC
-                    
-                    // NHC provides forecast/advisory data in separate files
-                    // You would typically fetch these from URLs like:
-                    // https://www.nhc.noaa.gov/storm_graphics/[BASIN][NUMBER]/[BASIN][NUMBER]_5day_cone_no_line_and_wind.kmz
-                    
-                    // For this POC, we're setting up the structure that real data would populate
-                    setHistoricalTrack([]);
-                    setForecastTrack([]);
-                    setForecastCone([]);
-                };
-
-                fetchStormData();
-                
-                // Refresh data every 15 minutes (NHC updates every 3-6 hours typically)
-                const interval = setInterval(fetchStormData, 15 * 60 * 1000);
-                return () => clearInterval(interval);
-            }, []);
-
             // Initialize map
             useEffect(() => {
-                if (!map) {
+                if (!map && typeof L !== 'undefined') {
                     const newMap = L.map('map').setView([26.0, -82.0], 6);
                     
                     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -222,167 +106,63 @@
             useEffect(() => {
                 if (!map || !activeStorm) return;
 
-                // Clear existing layers
-                map.eachLayer((layer) => {
-                    if (layer instanceof L.Polyline || layer instanceof L.Marker || layer instanceof L.Polygon) {
-                        map.removeLayer(layer);
-                    }
-                });
-
-                // Helper function to get color by category
                 const getCategoryColor = (cat) => {
                     const colors = {
-                        1: '#FBBF24', // yellow
-                        2: '#F59E0B', // orange
-                        3: '#EF4444', // red
-                        4: '#DC2626', // dark red
-                        5: '#7C3AED'  // purple
+                        1: '#FBBF24',
+                        2: '#F59E0B',
+                        3: '#EF4444',
+                        4: '#DC2626',
+                        5: '#7C3AED'
                     };
                     return colors[cat] || '#6B7280';
                 };
 
-                // Draw forecast uncertainty cone if available
-                if (forecastCone && forecastCone.length > 0) {
-                    L.polygon(forecastCone, {
-                        color: '#93C5FD',
-                        fillColor: '#DBEAFE',
-                        fillOpacity: 0.3,
-                        weight: 2,
-                        dashArray: '5, 10'
-                    }).addTo(map).bindPopup('Forecast Uncertainty Cone');
-                }
+                // Draw historical track
+                const historicalPath = HISTORICAL_TRACK.map(p => [p.lat, p.lon]);
+                L.polyline(historicalPath, { color: '#4B5563', weight: 4, opacity: 0.8 })
+                    .addTo(map).bindPopup('Historical Track');
 
-                // Draw historical track if available
-                if (historicalTrack && historicalTrack.length > 0) {
-                    const historicalPath = historicalTrack.map(point => [point.lat, point.lon]);
-                    L.polyline(historicalPath, {
-                        color: '#4B5563',
-                        weight: 4,
-                        opacity: 0.8
-                    }).addTo(map).bindPopup('Historical Track');
-
-                    // Add markers for historical positions
-                    historicalTrack.forEach((point, index) => {
-                        const color = getCategoryColor(point.category);
-                        const icon = L.divIcon({
-                            className: 'custom-icon',
-                            html: `<div style="background-color: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>`,
-                            iconSize: [12, 12]
-                        });
-                        
-                        L.marker([point.lat, point.lon], { icon })
-                            .addTo(map)
-                            .bindPopup(`
-                                <strong>Historical Position</strong><br>
-                                ${point.time}<br>
-                                Category ${point.category}<br>
-                                ${point.windSpeed} mph
-                            `);
+                HISTORICAL_TRACK.forEach((point) => {
+                    const color = getCategoryColor(point.category);
+                    const icon = L.divIcon({
+                        className: 'custom-icon',
+                        html: `<div style="background-color: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>`,
+                        iconSize: [12, 12]
                     });
-                }
-
-                // Draw forecast track if available
-                if (forecastTrack && forecastTrack.length > 0) {
-                    const forecastPath = forecastTrack.map(point => [point.lat, point.lon]);
-                    L.polyline(forecastPath, {
-                        color: '#EF4444',
-                        weight: 4,
-                        opacity: 0.8,
-                        dashArray: '10, 10'
-                    }).addTo(map).bindPopup('Forecast Track');
-
-                    // Add markers for forecast positions
-                    forecastTrack.forEach((point, index) => {
-                        const color = getCategoryColor(point.category);
-                        const icon = L.divIcon({
-                            className: 'custom-icon',
-                            html: `<div style="background-color: ${color}; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
-                            iconSize: [16, 16]
-                        });
-                        
-                        L.marker([point.lat, point.lon], { icon })
-                            .addTo(map)
-                            .bindPopup(`
-                                <strong>Forecast Position</strong><br>
-                                ${point.time}<br>
-                                Category ${point.category}<br>
-                                ${point.windSpeed} mph
-                            `);
-                    });
-                }
-
-                // Add current position marker (larger)
-                const currentIcon = L.divIcon({
-                    className: 'custom-icon',
-                    html: `<div style="background-color: #EF4444; width: 24px; height: 24px; border-radius: 50%; border: 4px solid white; box-shadow: 0 3px 6px rgba(0,0,0,0.4); animation: pulse 2s infinite;"></div>
-                           <style>@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }</style>`,
-                    iconSize: [24, 24]
+                    L.marker([point.lat, point.lon], { icon }).addTo(map)
+                        .bindPopup(`${point.time}<br>Cat ${point.category}<br>${point.windSpeed} mph`);
                 });
 
+                // Draw forecast track
+                const forecastPath = FORECAST_TRACK.map(p => [p.lat, p.lon]);
+                L.polyline(forecastPath, { color: '#EF4444', weight: 4, opacity: 0.8, dashArray: '10, 10' })
+                    .addTo(map).bindPopup('Forecast Track');
+
+                FORECAST_TRACK.forEach((point) => {
+                    const color = getCategoryColor(point.category);
+                    const icon = L.divIcon({
+                        className: 'custom-icon',
+                        html: `<div style="background-color: ${color}; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white;"></div>`,
+                        iconSize: [16, 16]
+                    });
+                    L.marker([point.lat, point.lon], { icon }).addTo(map)
+                        .bindPopup(`Forecast: ${point.time}<br>Cat ${point.category}<br>${point.windSpeed} mph`);
+                });
+
+                // Current position
+                const currentIcon = L.divIcon({
+                    className: 'custom-icon pulse',
+                    html: `<div style="background-color: #EF4444; width: 24px; height: 24px; border-radius: 50%; border: 4px solid white;"></div>`,
+                    iconSize: [24, 24]
+                });
                 L.marker([activeStorm.currentLat, activeStorm.currentLon], { icon: currentIcon })
                     .addTo(map)
-                    .bindPopup(`
-                        <strong>${activeStorm.name}</strong><br>
-                        <strong>CURRENT POSITION</strong><br>
-                        Category ${activeStorm.currentCategory}<br>
-                        ${activeStorm.currentWindSpeed} mph<br>
-                        ${activeStorm.currentPressure} mb
-                    `)
+                    .bindPopup(`<strong>${activeStorm.name}</strong><br>Cat ${activeStorm.currentCategory}<br>${activeStorm.currentWindSpeed} mph`)
                     .openPopup();
 
-                // Add legend
-                const legend = L.control({ position: 'bottomright' });
-                legend.onAdd = function() {
-                    const div = L.DomUtil.create('div', 'legend');
-                    div.innerHTML = `
-                        <div style="background: white; padding: 10px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
-                            <div style="font-weight: bold; margin-bottom: 8px;">Track Legend</div>
-                            <div style="display: flex; align-items: center; margin-bottom: 5px;">
-                                <div style="width: 30px; height: 3px; background: #4B5563; margin-right: 8px;"></div>
-                                <span style="font-size: 12px;">Historical Track</span>
-                            </div>
-                            <div style="display: flex; align-items: center; margin-bottom: 5px;">
-                                <div style="width: 30px; height: 3px; background: #EF4444; margin-right: 8px; border-top: 3px dashed #EF4444; background: none;"></div>
-                                <span style="font-size: 12px;">Forecast Track</span>
-                            </div>
-                            <div style="display: flex; align-items: center; margin-bottom: 5px;">
-                                <div style="width: 30px; height: 3px; background: #93C5FD; margin-right: 8px; opacity: 0.5;"></div>
-                                <span style="font-size: 12px;">Uncertainty Cone</span>
-                            </div>
-                            <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #E5E7EB;">
-                                <div style="font-weight: bold; margin-bottom: 5px; font-size: 11px;">Category Colors</div>
-                                <div style="display: flex; gap: 5px;">
-                                    <div style="width: 12px; height: 12px; background: #FBBF24; border-radius: 50%; border: 1px solid white;" title="Cat 1"></div>
-                                    <div style="width: 12px; height: 12px; background: #F59E0B; border-radius: 50%; border: 1px solid white;" title="Cat 2"></div>
-                                    <div style="width: 12px; height: 12px; background: #EF4444; border-radius: 50%; border: 1px solid white;" title="Cat 3"></div>
-                                    <div style="width: 12px; height: 12px; background: #DC2626; border-radius: 50%; border: 1px solid white;" title="Cat 4"></div>
-                                    <div style="width: 12px; height: 12px; background: #7C3AED; border-radius: 50%; border: 1px solid white;" title="Cat 5"></div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    return div;
-                };
-                legend.addTo(map);
-
-                // Fit bounds to show entire track
-                const allPoints = [...historicalTrack, ...forecastTrack].map(p => [p.lat, p.lon]);
-                if (allPoints.length > 0) {
-                    map.fitBounds(allPoints, { padding: [50, 50] });
-                } else {
-                    // Just center on current position if no track data
-                    map.setView([activeStorm.currentLat, activeStorm.currentLon], 6);
-                }
-
-            }, [map, activeStorm, historicalTrack, forecastTrack, forecastCone]);
-
-            // Load predictions from localStorage
-            useEffect(() => {
-                const saved = localStorage.getItem('predictions');
-                if (saved) {
-                    setPredictions(JSON.parse(saved));
-                }
-            }, []);
+                const allPoints = [...HISTORICAL_TRACK, ...FORECAST_TRACK].map(p => [p.lat, p.lon]);
+                map.fitBounds(allPoints, { padding: [50, 50] });
+            }, [map, activeStorm]);
 
             const handleInputChange = (e) => {
                 setUserPrediction({
@@ -399,7 +179,6 @@
                     return;
                 }
 
-                // Calculate a mock score (0-1000 points)
                 const score = Math.floor(Math.random() * 700) + 300;
                 
                 const newPrediction = {
@@ -412,14 +191,10 @@
                     accuracy: (score / 1000 * 100).toFixed(1)
                 };
 
-                const updatedPredictions = [...predictions, newPrediction];
-                setPredictions(updatedPredictions);
-                localStorage.setItem('predictions', JSON.stringify(updatedPredictions));
-                
+                setPredictions([...predictions, newPrediction]);
                 setSubmitted(true);
-                setTimeout(() => {
-                    setView('leaderboard');
-                }, 2000);
+                
+                setTimeout(() => setView('leaderboard'), 2000);
             };
 
             const getLeaderboard = () => {
@@ -436,63 +211,28 @@
                 return 'bg-blue-100 text-blue-900';
             };
 
-            const getCategoryColor = (category) => {
-                const colors = {
-                    1: 'text-yellow-600',
-                    2: 'text-orange-500',
-                    3: 'text-red-500',
-                    4: 'text-red-700',
-                    5: 'text-purple-700'
-                };
-                return colors[category] || 'text-gray-600';
-            };
-
             return (
                 <div className="container mx-auto px-4 py-8 max-w-6xl">
-                    {/* Loading State */}
-                    {loading && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                            <div className="bg-white rounded-lg p-8 text-center">
-                                <div className="text-6xl mb-4 animate-spin">🌀</div>
-                                <div className="text-xl font-bold text-gray-800">Loading Storm Data...</div>
-                                <div className="text-sm text-gray-600 mt-2">Connecting to NOAA/NHC</div>
-                            </div>
-                        </div>
-                    )}
+                    {/* Demo Mode Banner */}
+                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                        <p className="text-sm text-yellow-800">
+                            <strong>🌀 Demo Mode:</strong> No active hurricanes right now. Showing sample data from Hurricane Milton.
+                        </p>
+                    </div>
 
-                    {/* Error/Demo Mode Banner */}
-                    {error && (
-                        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
-                            <div className="flex">
-                                <div className="flex-shrink-0">
-                                    <span className="text-2xl">⚠️</span>
-                                </div>
-                                <div className="ml-3">
-                                    <p className="text-sm text-yellow-800">
-                                        <strong>Demo Mode:</strong> {error}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {!loading && activeStorm && (
-                        <>
                     {/* Header */}
                     <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between flex-wrap">
                             <div className="flex items-center gap-4">
                                 <div className="text-6xl hurricane-icon">🌀</div>
                                 <div>
                                     <h1 className="text-3xl font-bold text-gray-800">Hurricane Prediction Game</h1>
-                                    <p className="text-gray-600">Test your forecasting skills against the pros</p>
+                                    <p className="text-gray-600">Test your forecasting skills</p>
                                 </div>
                             </div>
-                            <div className="text-right">
+                            <div className="text-right mt-4 sm:mt-0">
                                 <div className="text-sm text-gray-500">Active Event</div>
-                                <div className={`text-2xl font-bold ${getCategoryColor(activeStorm.currentCategory)}`}>
-                                    {activeStorm.name}
-                                </div>
+                                <div className="text-2xl font-bold text-red-500">{activeStorm.name}</div>
                                 <div className="text-sm text-gray-600">Category {activeStorm.currentCategory}</div>
                             </div>
                         </div>
@@ -522,7 +262,7 @@
                         </button>
                     </div>
 
-                    {/* Storm Info Card */}
+                    {/* Storm Info */}
                     <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
                         <h2 className="text-xl font-bold text-gray-800 mb-4">Current Storm Data</h2>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -541,16 +281,9 @@
                                     {Math.abs(activeStorm.currentLon).toFixed(1)}°W
                                 </div>
                             </div>
-                            <div className="bg-orange-50 p-4 rounded-lg">
+                            <div className="bg-red-50 p-4 rounded-lg">
                                 <div className="text-sm text-gray-600">Category</div>
-                                <div className={`text-2xl font-bold ${getCategoryColor(activeStorm.currentCategory)}`}>
-                                    Cat {activeStorm.currentCategory}
-                                </div>
-                            </div>
-                        </div>
-                        <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                            <div className="text-sm text-yellow-800">
-                                ⏰ Predictions close in: <strong>48 hours</strong>
+                                <div className="text-2xl font-bold text-red-600">Cat {activeStorm.currentCategory}</div>
                             </div>
                         </div>
                     </div>
@@ -559,35 +292,6 @@
                     <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
                         <h2 className="text-xl font-bold text-gray-800 mb-4">🗺️ Hurricane Track & Forecast</h2>
                         <div id="map" className="mb-4"></div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                            <div className="bg-gray-50 p-3 rounded-lg">
-                                <div className="text-xs text-gray-600 mb-1">Historical Track</div>
-                                <div className="text-sm font-semibold text-gray-800">
-                                    {historicalTrack.length} observations
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                    {historicalTrack.length > 0 ? `Since ${historicalTrack[0].time}` : 'No data'}
-                                </div>
-                            </div>
-                            <div className="bg-blue-50 p-3 rounded-lg">
-                                <div className="text-xs text-blue-600 mb-1">Forecast Track</div>
-                                <div className="text-sm font-semibold text-blue-800">
-                                    {forecastTrack.length} forecast points
-                                </div>
-                                <div className="text-xs text-blue-500">
-                                    {forecastTrack.length > 0 ? `Through ${forecastTrack[forecastTrack.length - 1].time}` : 'No forecast data'}
-                                </div>
-                            </div>
-                            <div className="bg-yellow-50 p-3 rounded-lg">
-                                <div className="text-xs text-yellow-600 mb-1">Data Source</div>
-                                <div className="text-sm font-semibold text-yellow-800">
-                                    {error ? 'Demo Mode' : 'Live NHC Data'}
-                                </div>
-                                <div className="text-xs text-yellow-500">
-                                    {error ? 'Sample hurricane' : 'Real-time updates'}
-                                </div>
-                            </div>
-                        </div>
                     </div>
 
                     {/* Main Content */}
@@ -604,9 +308,7 @@
                             ) : (
                                 <form onSubmit={handleSubmit} className="space-y-6">
                                     <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                            Username *
-                                        </label>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Username *</label>
                                         <input
                                             type="text"
                                             name="username"
@@ -620,9 +322,7 @@
 
                                     <div className="grid md:grid-cols-2 gap-6">
                                         <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                                Landfall Latitude (°N) *
-                                            </label>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Landfall Latitude (°N) *</label>
                                             <input
                                                 type="number"
                                                 step="0.1"
@@ -634,11 +334,8 @@
                                                 required
                                             />
                                         </div>
-
                                         <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                                Landfall Longitude (°W) *
-                                            </label>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Landfall Longitude (°W) *</label>
                                             <input
                                                 type="number"
                                                 step="0.1"
@@ -654,9 +351,7 @@
 
                                     <div className="grid md:grid-cols-2 gap-6">
                                         <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                                Maximum Wind Speed (mph) *
-                                            </label>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Maximum Wind Speed (mph) *</label>
                                             <input
                                                 type="number"
                                                 name="maxWindSpeed"
@@ -669,11 +364,8 @@
                                                 required
                                             />
                                         </div>
-
                                         <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                                Minimum Pressure (mb) *
-                                            </label>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Minimum Pressure (mb) *</label>
                                             <input
                                                 type="number"
                                                 name="minPressure"
@@ -690,9 +382,7 @@
 
                                     <div className="grid md:grid-cols-2 gap-6">
                                         <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                                Peak Category *
-                                            </label>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Peak Category *</label>
                                             <select
                                                 name="peakCategory"
                                                 value={userPrediction.peakCategory}
@@ -708,11 +398,8 @@
                                                 <option value="5">Category 5</option>
                                             </select>
                                         </div>
-
                                         <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                                Expected Landfall Time *
-                                            </label>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Expected Landfall Time *</label>
                                             <input
                                                 type="datetime-local"
                                                 name="landfallTime"
@@ -766,28 +453,14 @@
                                     ))}
                                 </div>
                             )}
-
-                            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                                <h3 className="font-semibold text-blue-900 mb-2">How Scoring Works</h3>
-                                <p className="text-sm text-blue-800">
-                                    Points are awarded based on prediction accuracy across all parameters. 
-                                    Final scores will be calculated after the storm makes landfall and official data is verified.
-                                </p>
-                            </div>
                         </div>
                     )}
 
                     {/* Footer */}
                     <div className="mt-8 text-center text-gray-600 text-sm">
-                        <p>🌐 Connected to NOAA National Hurricane Center API</p>
-                        <p className="mt-2">Data updates automatically every 15 minutes. NHC updates forecasts every 3-6 hours.</p>
-                        <p className="mt-2">Predictions are stored locally in your browser.</p>
-                        {activeStorm && activeStorm.lastUpdate && (
-                            <p className="mt-2 text-xs">Last Update: {new Date(activeStorm.lastUpdate).toLocaleString()}</p>
-                        )}
+                        <p>🌀 Hurricane Prediction Game - Demo Version</p>
+                        <p className="mt-2">Currently showing sample data. Connect to NOAA/NHC API for live storms!</p>
                     </div>
-                    </>
-                    )}
                 </div>
             );
         }
