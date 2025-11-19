@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -14,70 +16,36 @@ app.use(express.static('public'));
 let predictions = [];
 let activeStorms = [];
 
-// Historical storm data for weekly rotation
-const HISTORICAL_STORMS = [
-  {
-    id: 'irma-2017',
-    name: 'Hurricane Irma',
-    year: 2017,
-    actualLandfall: { lat: 25.0, lon: -80.9, time: '2017-09-10T13:00:00Z', category: 4, windSpeed: 130, pressure: 929 },
-    track: [
-      { time: '2017-08-30T06:00:00Z', lat: 16.5, lon: -27.9, windSpeed: 35, pressure: 1008, category: 0 },
-      { time: '2017-08-31T06:00:00Z', lat: 16.8, lon: -34.0, windSpeed: 75, pressure: 987, category: 1 },
-      { time: '2017-09-01T06:00:00Z', lat: 16.8, lon: -40.8, windSpeed: 125, pressure: 950, category: 4 },
-      { time: '2017-09-02T12:00:00Z', lat: 17.6, lon: -49.0, windSpeed: 160, pressure: 922, category: 5 },
-      { time: '2017-09-03T18:00:00Z', lat: 18.6, lon: -57.0, windSpeed: 185, pressure: 914, category: 5 },
-      { time: '2017-09-06T00:00:00Z', lat: 21.6, lon: -68.8, windSpeed: 185, pressure: 914, category: 5 },
-      { time: '2017-09-08T06:00:00Z', lat: 26.9, lon: -75.3, windSpeed: 155, pressure: 929, category: 4 },
-      { time: '2017-09-10T13:00:00Z', lat: 25.0, lon: -80.9, windSpeed: 130, pressure: 929, category: 4 }
-    ]
-  },
-  {
-    id: 'wilma-2005',
-    name: 'Hurricane Wilma',
-    year: 2005,
-    actualLandfall: { lat: 26.0, lon: -81.5, time: '2005-10-24T10:30:00Z', category: 3, windSpeed: 120, pressure: 950 },
-    track: [
-      { time: '2005-10-15T06:00:00Z', lat: 17.5, lon: -77.0, windSpeed: 35, pressure: 1006, category: 0 },
-      { time: '2005-10-18T06:00:00Z', lat: 19.0, lon: -84.5, windSpeed: 80, pressure: 985, category: 1 },
-      { time: '2005-10-19T00:00:00Z', lat: 19.2, lon: -85.0, windSpeed: 175, pressure: 882, category: 5 },
-      { time: '2005-10-20T06:00:00Z', lat: 20.5, lon: -86.5, windSpeed: 150, pressure: 900, category: 4 },
-      { time: '2005-10-22T06:00:00Z', lat: 22.0, lon: -85.0, windSpeed: 125, pressure: 950, category: 3 },
-      { time: '2005-10-24T00:00:00Z', lat: 25.5, lon: -81.0, windSpeed: 120, pressure: 950, category: 3 },
-      { time: '2005-10-24T10:30:00Z', lat: 26.0, lon: -81.5, windSpeed: 120, pressure: 950, category: 3 }
-    ]
-  },
-  {
-    id: 'ian-2022',
-    name: 'Hurricane Ian',
-    year: 2022,
-    actualLandfall: { lat: 26.6, lon: -82.3, time: '2022-09-28T19:05:00Z', category: 4, windSpeed: 150, pressure: 940 },
-    track: [
-      { time: '2022-09-23T06:00:00Z', lat: 13.5, lon: -61.0, windSpeed: 35, pressure: 1005, category: 0 },
-      { time: '2022-09-25T06:00:00Z', lat: 16.5, lon: -78.0, windSpeed: 65, pressure: 991, category: 0 },
-      { time: '2022-09-26T06:00:00Z', lat: 17.8, lon: -81.5, windSpeed: 85, pressure: 980, category: 1 },
-      { time: '2022-09-27T00:00:00Z', lat: 19.5, lon: -83.0, windSpeed: 120, pressure: 954, category: 3 },
-      { time: '2022-09-27T12:00:00Z', lat: 20.8, lon: -83.5, windSpeed: 155, pressure: 937, category: 4 },
-      { time: '2022-09-28T12:00:00Z', lat: 25.0, lon: -82.5, windSpeed: 155, pressure: 940, category: 4 },
-      { time: '2022-09-28T19:05:00Z', lat: 26.6, lon: -82.3, windSpeed: 150, pressure: 940, category: 4 }
-    ]
-  },
-  {
-    id: 'harvey-2017',
-    name: 'Hurricane Harvey',
-    year: 2017,
-    actualLandfall: { lat: 28.0, lon: -96.5, time: '2017-08-26T03:00:00Z', category: 4, windSpeed: 130, pressure: 937 },
-    track: [
-      { time: '2017-08-17T00:00:00Z', lat: 11.5, lon: -35.0, windSpeed: 35, pressure: 1007, category: 0 },
-      { time: '2017-08-18T06:00:00Z', lat: 12.5, lon: -44.0, windSpeed: 45, pressure: 1004, category: 0 },
-      { time: '2017-08-23T06:00:00Z', lat: 22.0, lon: -92.0, windSpeed: 45, pressure: 1002, category: 0 },
-      { time: '2017-08-24T06:00:00Z', lat: 24.5, lon: -94.5, windSpeed: 65, pressure: 994, category: 0 },
-      { time: '2017-08-25T00:00:00Z', lat: 26.0, lon: -95.5, windSpeed: 110, pressure: 961, category: 2 },
-      { time: '2017-08-25T18:00:00Z', lat: 27.5, lon: -96.0, windSpeed: 130, pressure: 938, category: 4 },
-      { time: '2017-08-26T03:00:00Z', lat: 28.0, lon: -96.5, windSpeed: 130, pressure: 937, category: 4 }
-    ]
+// Load historical storms from JSON file
+let HISTORICAL_STORMS = [];
+
+function loadStorms() {
+  try {
+    const stormsPath = path.join(__dirname, 'storms.json');
+    const stormsData = fs.readFileSync(stormsPath, 'utf8');
+    const parsed = JSON.parse(stormsData);
+    HISTORICAL_STORMS = parsed.storms;
+    console.log(`✅ Loaded ${HISTORICAL_STORMS.length} historical storms from storms.json`);
+  } catch (error) {
+    console.error('⚠️ Error loading storms.json, using fallback data:', error.message);
+    // Fallback to hardcoded storms if file doesn't exist
+    HISTORICAL_STORMS = [
+      {
+        id: 'irma-2017',
+        name: 'Hurricane Irma',
+        year: 2017,
+        actualLandfall: { lat: 25.0, lon: -80.9, time: '2017-09-10T13:00:00Z', category: 4, windSpeed: 130, pressure: 929 },
+        track: [
+          { time: '2017-08-30T06:00:00Z', lat: 16.5, lon: -27.9, windSpeed: 35, pressure: 1008, category: 0 },
+          { time: '2017-09-10T13:00:00Z', lat: 25.0, lon: -80.9, windSpeed: 130, pressure: 929, category: 4 }
+        ]
+      }
+    ];
   }
-];
+}
+
+// Load storms on startup
+loadStorms();
 
 // Get current week's storm
 function getCurrentWeekStorm() {
