@@ -77,9 +77,11 @@
         ];
 
         function HurricaneGameApp() {
-            const [activeStorm] = useState(DEMO_STORM);
+            const [activeStorm, setActiveStorm] = useState(DEMO_STORM);
             const [isLiveData, setIsLiveData] = useState(false);
             const [loading, setLoading] = useState(true);
+            const [historicalTrack, setHistoricalTrack] = useState(HISTORICAL_TRACK);
+            const [forecastTrack, setForecastTrack] = useState(FORECAST_TRACK);
             const [predictions, setPredictions] = useState([]);
             const [userPrediction, setUserPrediction] = useState({
                 username: '',
@@ -98,12 +100,68 @@
             useEffect(() => {
                 const fetchLiveData = async () => {
                     try {
+                        // Try to fetch weekly historical storm first
+                        const weeklyResponse = await fetch(`${API_BASE_URL}/storms/weekly`);
+                        
+                        if (weeklyResponse.ok) {
+                            const weeklyData = await weeklyResponse.json();
+                            
+                            if (weeklyData.storm) {
+                                // Update with weekly storm data
+                                setActiveStorm({
+                                    id: weeklyData.storm.id,
+                                    name: weeklyData.storm.name,
+                                    currentCategory: weeklyData.storm.currentCategory,
+                                    currentLat: weeklyData.storm.currentLat,
+                                    currentLon: weeklyData.storm.currentLon,
+                                    currentWindSpeed: weeklyData.storm.currentWindSpeed,
+                                    currentPressure: weeklyData.storm.currentPressure,
+                                    status: 'weekly-replay',
+                                    year: weeklyData.storm.year,
+                                    weekProgress: weeklyData.metadata.weekProgress,
+                                    daysRemaining: weeklyData.metadata.daysRemaining
+                                });
+                                
+                                // Update tracks
+                                if (weeklyData.historicalTrack) {
+                                    const historical = weeklyData.historicalTrack.map(p => ({
+                                        lat: p.lat,
+                                        lon: p.lon,
+                                        time: new Date(p.time).toLocaleString('en-US', { 
+                                            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                                        }),
+                                        category: p.category,
+                                        windSpeed: p.windSpeed
+                                    }));
+                                    setHistoricalTrack(historical);
+                                }
+                                
+                                if (weeklyData.forecastTrack) {
+                                    const forecast = weeklyData.forecastTrack.map(p => ({
+                                        lat: p.lat,
+                                        lon: p.lon,
+                                        time: new Date(p.time).toLocaleString('en-US', { 
+                                            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                                        }),
+                                        category: p.category,
+                                        windSpeed: p.windSpeed
+                                    }));
+                                    setForecastTrack(forecast);
+                                }
+                                
+                                setIsLiveData(true);
+                                console.log('Weekly storm loaded:', weeklyData);
+                                setLoading(false);
+                                return;
+                            }
+                        }
+                        
+                        // Fallback to checking real NHC data
                         const response = await fetch(`${API_BASE_URL}/storms/current`);
                         const data = await response.json();
                         
                         if (data.activeStorms && data.activeStorms.length > 0) {
                             setIsLiveData(true);
-                            // Would update activeStorm here with real data
                             console.log('Live storm data:', data);
                         }
                     } catch (error) {
@@ -145,11 +203,12 @@
                 };
 
                 // Draw historical track
-                const historicalPath = HISTORICAL_TRACK.map(p => [p.lat, p.lon]);
-                L.polyline(historicalPath, { color: '#4B5563', weight: 4, opacity: 0.8 })
-                    .addTo(map).bindPopup('Historical Track');
+                if (historicalTrack && historicalTrack.length > 0) {
+                    const historicalPath = historicalTrack.map(p => [p.lat, p.lon]);
+                    L.polyline(historicalPath, { color: '#4B5563', weight: 4, opacity: 0.8 })
+                        .addTo(map).bindPopup('Historical Track');
 
-                HISTORICAL_TRACK.forEach((point) => {
+                    historicalTrack.forEach((point) => {
                     const color = getCategoryColor(point.category);
                     const icon = L.divIcon({
                         className: 'custom-icon',
@@ -158,14 +217,16 @@
                     });
                     L.marker([point.lat, point.lon], { icon }).addTo(map)
                         .bindPopup(`${point.time}<br>Cat ${point.category}<br>${point.windSpeed} mph`);
-                });
+                    });
+                }
 
                 // Draw forecast track
-                const forecastPath = FORECAST_TRACK.map(p => [p.lat, p.lon]);
-                L.polyline(forecastPath, { color: '#EF4444', weight: 4, opacity: 0.8, dashArray: '10, 10' })
-                    .addTo(map).bindPopup('Forecast Track');
+                if (forecastTrack && forecastTrack.length > 0) {
+                    const forecastPath = forecastTrack.map(p => [p.lat, p.lon]);
+                    L.polyline(forecastPath, { color: '#EF4444', weight: 4, opacity: 0.8, dashArray: '10, 10' })
+                        .addTo(map).bindPopup('Forecast Track');
 
-                FORECAST_TRACK.forEach((point) => {
+                    forecastTrack.forEach((point) => {
                     const color = getCategoryColor(point.category);
                     const icon = L.divIcon({
                         className: 'custom-icon',
@@ -187,9 +248,11 @@
                     .bindPopup(`<strong>${activeStorm.name}</strong><br>Cat ${activeStorm.currentCategory}<br>${activeStorm.currentWindSpeed} mph`)
                     .openPopup();
 
-                const allPoints = [...HISTORICAL_TRACK, ...FORECAST_TRACK].map(p => [p.lat, p.lon]);
-                map.fitBounds(allPoints, { padding: [50, 50] });
-            }, [map, activeStorm]);
+                const allPoints = [...historicalTrack, ...forecastTrack].map(p => [p.lat, p.lon]);
+                if (allPoints.length > 0) {
+                    map.fitBounds(allPoints, { padding: [50, 50] });
+                }
+            }, [map, activeStorm, historicalTrack, forecastTrack]);
 
             const handleInputChange = (e) => {
                 setUserPrediction({
@@ -240,11 +303,15 @@
 
             return (
                 <div className="container mx-auto px-4 py-8 max-w-6xl">
-                    {/* Demo Mode Banner */}
+                    {/* Status Banner */}
                     <div className={`border-l-4 p-4 mb-6 ${isLiveData ? 'bg-green-50 border-green-400' : 'bg-yellow-50 border-yellow-400'}`}>
                         <p className="text-sm">
                             {isLiveData ? (
-                                <><strong>🌐 Connected to NOAA/NHC:</strong> Checking for active hurricanes...</>
+                                <>
+                                    <strong>🔄 Weekly Historical Replay:</strong> {activeStorm.name} ({activeStorm.year}) • 
+                                    Week Progress: {activeStorm.weekProgress}% • 
+                                    {activeStorm.daysRemaining} days until next storm
+                                </>
                             ) : (
                                 <><strong>🌀 Demo Mode:</strong> No active hurricanes right now. Showing sample data from Hurricane Milton.</>
                             )}
@@ -492,8 +559,8 @@
                         <p>🌀 Hurricane Prediction Game</p>
                         <p className="mt-2">
                             {isLiveData 
-                                ? '✅ Connected to live NOAA/NHC data via Railway backend' 
-                                : '⚠️ Currently no active storms - showing demo data'
+                                ? `✅ Weekly Historical Replay: ${activeStorm.name} (${activeStorm.year}) - Resets every Monday` 
+                                : '⚠️ Demo mode - Enable weekly replays by connecting to backend'
                             }
                         </p>
                         <p className="mt-1 text-xs">Backend: {API_BASE_URL}</p>
