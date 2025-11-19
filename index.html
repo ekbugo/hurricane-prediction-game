@@ -191,6 +191,13 @@
             useEffect(() => {
                 if (!map || !activeStorm) return;
 
+                // Clear all existing layers except the base tile layer
+                map.eachLayer((layer) => {
+                    if (!(layer instanceof L.TileLayer)) {
+                        map.removeLayer(layer);
+                    }
+                });
+
                 const getCategoryColor = (cat) => {
                     const colors = {
                         1: '#FBBF24',
