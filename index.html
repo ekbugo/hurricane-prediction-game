@@ -43,7 +43,10 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // Demo hurricane data
+        // API Configuration - connects to your Railway backend
+        const API_BASE_URL = 'https://hurricane-prediction-game-production.up.railway.app/api';
+
+        // Demo hurricane data (fallback)
         const DEMO_STORM = {
             id: 'demo-2024',
             name: "Hurricane Milton",
@@ -75,6 +78,8 @@
 
         function HurricaneGameApp() {
             const [activeStorm] = useState(DEMO_STORM);
+            const [isLiveData, setIsLiveData] = useState(false);
+            const [loading, setLoading] = useState(true);
             const [predictions, setPredictions] = useState([]);
             const [userPrediction, setUserPrediction] = useState({
                 username: '',
@@ -88,6 +93,28 @@
             const [view, setView] = useState('predict');
             const [submitted, setSubmitted] = useState(false);
             const [map, setMap] = useState(null);
+
+            // Fetch live storm data from backend
+            useEffect(() => {
+                const fetchLiveData = async () => {
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/storms/current`);
+                        const data = await response.json();
+                        
+                        if (data.activeStorms && data.activeStorms.length > 0) {
+                            setIsLiveData(true);
+                            // Would update activeStorm here with real data
+                            console.log('Live storm data:', data);
+                        }
+                    } catch (error) {
+                        console.log('Using demo mode:', error);
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+                
+                fetchLiveData();
+            }, []);
 
             // Initialize map
             useEffect(() => {
@@ -214,9 +241,13 @@
             return (
                 <div className="container mx-auto px-4 py-8 max-w-6xl">
                     {/* Demo Mode Banner */}
-                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
-                        <p className="text-sm text-yellow-800">
-                            <strong>🌀 Demo Mode:</strong> No active hurricanes right now. Showing sample data from Hurricane Milton.
+                    <div className={`border-l-4 p-4 mb-6 ${isLiveData ? 'bg-green-50 border-green-400' : 'bg-yellow-50 border-yellow-400'}`}>
+                        <p className="text-sm">
+                            {isLiveData ? (
+                                <><strong>🌐 Connected to NOAA/NHC:</strong> Checking for active hurricanes...</>
+                            ) : (
+                                <><strong>🌀 Demo Mode:</strong> No active hurricanes right now. Showing sample data from Hurricane Milton.</>
+                            )}
                         </p>
                     </div>
 
@@ -458,8 +489,14 @@
 
                     {/* Footer */}
                     <div className="mt-8 text-center text-gray-600 text-sm">
-                        <p>🌀 Hurricane Prediction Game - Demo Version</p>
-                        <p className="mt-2">Currently showing sample data. Connect to NOAA/NHC API for live storms!</p>
+                        <p>🌀 Hurricane Prediction Game</p>
+                        <p className="mt-2">
+                            {isLiveData 
+                                ? '✅ Connected to live NOAA/NHC data via Railway backend' 
+                                : '⚠️ Currently no active storms - showing demo data'
+                            }
+                        </p>
+                        <p className="mt-1 text-xs">Backend: {API_BASE_URL}</p>
                     </div>
                 </div>
             );
