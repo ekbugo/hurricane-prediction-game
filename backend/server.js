@@ -47,6 +47,38 @@ function loadStorms() {
 // Load storms on startup
 loadStorms();
 
+// Predictions file path
+const PREDICTIONS_FILE = path.join(__dirname, 'predictions.json');
+
+// Load predictions from file
+function loadPredictions() {
+  try {
+    if (fs.existsSync(PREDICTIONS_FILE)) {
+      const data = fs.readFileSync(PREDICTIONS_FILE, 'utf8');
+      predictions = JSON.parse(data);
+      console.log(`✅ Loaded ${predictions.length} predictions from predictions.json`);
+    } else {
+      console.log('📝 No existing predictions file, starting fresh');
+    }
+  } catch (error) {
+    console.error('⚠️ Error loading predictions:', error.message);
+    predictions = [];
+  }
+}
+
+// Save predictions to file
+function savePredictions() {
+  try {
+    fs.writeFileSync(PREDICTIONS_FILE, JSON.stringify(predictions, null, 2));
+    console.log(`💾 Saved ${predictions.length} predictions to file`);
+  } catch (error) {
+    console.error('⚠️ Error saving predictions:', error.message);
+  }
+}
+
+// Load predictions on startup
+loadPredictions();
+
 // Get current week's storm
 function getCurrentWeekStorm() {
   const referenceDate = new Date('2025-01-01T00:00:00Z');
@@ -170,6 +202,9 @@ app.post('/api/predictions', (req, res) => {
         }
         
         predictions.push(prediction);
+        
+        // Save to file immediately
+        savePredictions();
         
         res.status(201).json({
             success: true,
