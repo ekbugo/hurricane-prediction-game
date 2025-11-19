@@ -235,7 +235,8 @@
                     });
                     L.marker([point.lat, point.lon], { icon }).addTo(map)
                         .bindPopup(`Forecast: ${point.time}<br>Cat ${point.category}<br>${point.windSpeed} mph`);
-                });
+                    });
+                }
 
                 // Current position
                 const currentIcon = L.divIcon({
