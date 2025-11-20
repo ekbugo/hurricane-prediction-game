@@ -587,7 +587,8 @@
                                                 <div className="text-sm opacity-75">
                                                     Predicted: Cat {pred.peakCategory || 'N/A'} • 
                                                     {pred.peakWindSpeed ? `${pred.peakWindSpeed} mph` : 'N/A'} • 
-                                                    Landfall: {pred.landfallLat?.toFixed(1) || 'N/A'}°N, {Math.abs(pred.landfallLon || 0).toFixed(1)}°W
+                                                    Landfall: {pred.landfallLat ? `${Number(pred.landfallLat).toFixed(1)}°N` : 'N/A'}, 
+                                                    {pred.landfallLon ? `${Math.abs(Number(pred.landfallLon)).toFixed(1)}°W` : 'N/A'}
                                                 </div>
                                             </div>
                                             <div className="text-right">
