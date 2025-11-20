@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const { Pool } = require('pg');
 require('dotenv').config();
 
 const app = express();
@@ -12,8 +13,13 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// In-memory storage (replace with database in production)
-let predictions = [];
+// PostgreSQL connection
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+// In-memory storage for active storms
 let activeStorms = [];
 
 // Load historical storms from JSON file
@@ -28,7 +34,6 @@ function loadStorms() {
     console.log(`✅ Loaded ${HISTORICAL_STORMS.length} historical storms from storms.json`);
   } catch (error) {
     console.error('⚠️ Error loading storms.json, using fallback data:', error.message);
-    // Fallback to hardcoded storms if file doesn't exist
     HISTORICAL_STORMS = [
       {
         id: 'irma-2017',
@@ -47,37 +52,34 @@ function loadStorms() {
 // Load storms on startup
 loadStorms();
 
-// Predictions file path
-const PREDICTIONS_FILE = path.join(__dirname, 'predictions.json');
-
-// Load predictions from file
-function loadPredictions() {
+// Initialize database table
+async function initializeDatabase() {
   try {
-    if (fs.existsSync(PREDICTIONS_FILE)) {
-      const data = fs.readFileSync(PREDICTIONS_FILE, 'utf8');
-      predictions = JSON.parse(data);
-      console.log(`✅ Loaded ${predictions.length} predictions from predictions.json`);
-    } else {
-      console.log('📝 No existing predictions file, starting fresh');
-    }
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS predictions (
+        id SERIAL PRIMARY KEY,
+        prediction_id VARCHAR(50) UNIQUE NOT NULL,
+        username VARCHAR(100) NOT NULL,
+        storm_id VARCHAR(50) NOT NULL,
+        landfall_lat DECIMAL(10, 6),
+        landfall_lon DECIMAL(10, 6),
+        landfall_time TIMESTAMP,
+        peak_category INTEGER,
+        peak_wind_speed INTEGER,
+        submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        score INTEGER,
+        accuracy DECIMAL(5, 2),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✅ Database table initialized');
   } catch (error) {
-    console.error('⚠️ Error loading predictions:', error.message);
-    predictions = [];
+    console.error('⚠️ Error initializing database:', error.message);
   }
 }
 
-// Save predictions to file
-function savePredictions() {
-  try {
-    fs.writeFileSync(PREDICTIONS_FILE, JSON.stringify(predictions, null, 2));
-    console.log(`💾 Saved ${predictions.length} predictions to file`);
-  } catch (error) {
-    console.error('⚠️ Error saving predictions:', error.message);
-  }
-}
-
-// Load predictions on startup
-loadPredictions();
+// Initialize database on startup
+initializeDatabase();
 
 // Get current week's storm
 function getCurrentWeekStorm() {
@@ -91,7 +93,7 @@ function getCurrentWeekStorm() {
 // Simulate progression through storm
 function getSimulatedStormPosition(storm) {
   const now = new Date();
-  const dayOfWeek = now.getUTCDay(); // 0=Sunday, 1=Monday
+  const dayOfWeek = now.getUTCDay();
   const hourOfDay = now.getUTCHours();
   const weekProgress = (dayOfWeek + hourOfDay / 24) / 7;
   
@@ -187,28 +189,38 @@ app.get('/api/storms/:stormId', async (req, res) => {
 });
 
 // Submit a prediction
-app.post('/api/predictions', (req, res) => {
+app.post('/api/predictions', async (req, res) => {
     try {
-        const prediction = {
-            id: Date.now().toString(),
-            ...req.body,
-            submittedAt: new Date().toISOString(),
-            score: null,
-            accuracy: null
-        };
+        const {
+            username,
+            stormId,
+            landfallLat,
+            landfallLon,
+            landfallTime,
+            peakCategory,
+            peakWindSpeed
+        } = req.body;
         
-        if (!prediction.username || !prediction.stormId) {
+        if (!username || !stormId) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
         
-        predictions.push(prediction);
+        const predictionId = Date.now().toString();
         
-        // Save to file immediately
-        savePredictions();
+        // Insert into database
+        const result = await pool.query(
+            `INSERT INTO predictions 
+            (prediction_id, username, storm_id, landfall_lat, landfall_lon, landfall_time, peak_category, peak_wind_speed)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING *`,
+            [predictionId, username, stormId, landfallLat, landfallLon, landfallTime, peakCategory, peakWindSpeed]
+        );
+        
+        console.log(`💾 Saved prediction for ${username} on storm ${stormId}`);
         
         res.status(201).json({
             success: true,
-            prediction: prediction,
+            prediction: result.rows[0],
             message: 'Prediction submitted successfully'
         });
     } catch (error) {
@@ -218,19 +230,34 @@ app.post('/api/predictions', (req, res) => {
 });
 
 // Get leaderboard for a specific storm
-app.get('/api/leaderboard/:stormId', (req, res) => {
+app.get('/api/leaderboard/:stormId', async (req, res) => {
     try {
         const { stormId } = req.params;
         
-        const stormPredictions = predictions
-            .filter(p => p.stormId === stormId)
-            .sort((a, b) => (b.score || 0) - (a.score || 0))
-            .slice(0, 100);
+        const result = await pool.query(
+            `SELECT 
+                prediction_id as id,
+                username,
+                storm_id as "stormId",
+                landfall_lat as "landfallLat",
+                landfall_lon as "landfallLon",
+                landfall_time as "landfallTime",
+                peak_category as "peakCategory",
+                peak_wind_speed as "peakWindSpeed",
+                submitted_at as "submittedAt",
+                score,
+                accuracy
+            FROM predictions
+            WHERE storm_id = $1
+            ORDER BY score DESC NULLS LAST, submitted_at ASC
+            LIMIT 100`,
+            [stormId]
+        );
         
         res.json({
             stormId,
-            predictions: stormPredictions,
-            totalPredictions: stormPredictions.length
+            predictions: result.rows,
+            totalPredictions: result.rows.length
         });
     } catch (error) {
         console.error('Error fetching leaderboard:', error);
@@ -239,18 +266,33 @@ app.get('/api/leaderboard/:stormId', (req, res) => {
 });
 
 // Get all predictions for a user
-app.get('/api/predictions/user/:username', (req, res) => {
+app.get('/api/predictions/user/:username', async (req, res) => {
     try {
         const { username } = req.params;
         
-        const userPredictions = predictions.filter(
-            p => p.username.toLowerCase() === username.toLowerCase()
+        const result = await pool.query(
+            `SELECT 
+                prediction_id as id,
+                username,
+                storm_id as "stormId",
+                landfall_lat as "landfallLat",
+                landfall_lon as "landfallLon",
+                landfall_time as "landfallTime",
+                peak_category as "peakCategory",
+                peak_wind_speed as "peakWindSpeed",
+                submitted_at as "submittedAt",
+                score,
+                accuracy
+            FROM predictions
+            WHERE LOWER(username) = LOWER($1)
+            ORDER BY submitted_at DESC`,
+            [username]
         );
         
         res.json({
             username,
-            predictions: userPredictions,
-            totalPredictions: userPredictions.length
+            predictions: result.rows,
+            totalPredictions: result.rows.length
         });
     } catch (error) {
         console.error('Error fetching user predictions:', error);
@@ -259,17 +301,32 @@ app.get('/api/predictions/user/:username', (req, res) => {
 });
 
 // Health check
-app.get('/api/health', (req, res) => {
-    res.json({ 
-        status: 'healthy', 
-        timestamp: new Date().toISOString(),
-        predictionsCount: predictions.length,
-        activeStormsCount: activeStorms.length
-    });
+app.get('/api/health', async (req, res) => {
+    try {
+        // Test database connection
+        const result = await pool.query('SELECT COUNT(*) FROM predictions');
+        const predictionsCount = parseInt(result.rows[0].count);
+        
+        res.json({ 
+            status: 'healthy', 
+            timestamp: new Date().toISOString(),
+            predictionsCount: predictionsCount,
+            activeStormsCount: activeStorms.length,
+            database: 'connected'
+        });
+    } catch (error) {
+        res.json({
+            status: 'degraded',
+            timestamp: new Date().toISOString(),
+            database: 'error',
+            error: error.message
+        });
+    }
 });
 
 // Start server
 app.listen(PORT, () => {
     console.log(`🌀 Hurricane Prediction Game API running on port ${PORT}`);
     console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🗄️  Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
 });
