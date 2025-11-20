@@ -585,12 +585,14 @@
                                             <div className="flex-1">
                                                 <div className="font-bold text-lg">{pred.username}</div>
                                                 <div className="text-sm opacity-75">
-                                                    Predicted: Cat {pred.peakCategory} • {pred.maxWindSpeed} mph • {pred.minPressure} mb
+                                                    Predicted: Cat {pred.peakCategory || 'N/A'} • 
+                                                    {pred.peakWindSpeed ? `${pred.peakWindSpeed} mph` : 'N/A'} • 
+                                                    Landfall: {pred.landfallLat?.toFixed(1) || 'N/A'}°N, {Math.abs(pred.landfallLon || 0).toFixed(1)}°W
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <div className="text-2xl font-bold">{pred.score}</div>
-                                                <div className="text-sm opacity-75">{pred.accuracy}% accuracy</div>
+                                                <div className="text-2xl font-bold">{pred.score || 'Pending'}</div>
+                                                <div className="text-sm opacity-75">{pred.accuracy ? `${pred.accuracy}% accuracy` : 'Not scored yet'}</div>
                                             </div>
                                         </div>
                                     ))}
