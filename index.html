@@ -109,7 +109,13 @@
 
             // Initialize map
             useEffect(() => {
-                if (!map && typeof L !== 'undefined' && gameState) {
+                if (map || !gameState) return;
+                
+                // Wait for DOM element to be available
+                const mapElement = document.getElementById('map');
+                if (!mapElement || typeof L === 'undefined') return;
+                
+                try {
                     const newMap = L.map('map').setView([25.0, -80.0], 5);
                     
                     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -117,8 +123,10 @@
                     }).addTo(newMap);
 
                     setMap(newMap);
+                } catch (error) {
+                    console.error('Error initializing map:', error);
                 }
-            }, [gameState]);
+            }, [map, gameState]);
 
             // Update map with storm track
             useEffect(() => {
