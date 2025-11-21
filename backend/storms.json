@@ -1,102 +1,188 @@
 {
   "storms": [
     {
-      "id": "irma-2017",
-      "name": "Hurricane Irma",
-      "year": 2017,
-      "description": "Powerful Category 5 hurricane that devastated the Caribbean and Florida Keys",
-      "actualLandfall": {
-        "lat": 25.0,
-        "lon": -80.9,
-        "time": "2017-09-10T13:00:00Z",
-        "category": 4,
-        "windSpeed": 130,
-        "pressure": 929
-      },
-      "track": [
-        { "time": "2017-08-30T06:00:00Z", "lat": 16.5, "lon": -27.9, "windSpeed": 35, "pressure": 1008, "category": 0 },
-        { "time": "2017-08-31T06:00:00Z", "lat": 16.8, "lon": -34.0, "windSpeed": 75, "pressure": 987, "category": 1 },
-        { "time": "2017-09-01T06:00:00Z", "lat": 16.8, "lon": -40.8, "windSpeed": 125, "pressure": 950, "category": 4 },
-        { "time": "2017-09-02T12:00:00Z", "lat": 17.6, "lon": -49.0, "windSpeed": 160, "pressure": 922, "category": 5 },
-        { "time": "2017-09-03T18:00:00Z", "lat": 18.6, "lon": -57.0, "windSpeed": 185, "pressure": 914, "category": 5 },
-        { "time": "2017-09-06T00:00:00Z", "lat": 21.6, "lon": -68.8, "windSpeed": 185, "pressure": 914, "category": 5 },
-        { "time": "2017-09-08T06:00:00Z", "lat": 26.9, "lon": -75.3, "windSpeed": 155, "pressure": 929, "category": 4 },
-        { "time": "2017-09-10T13:00:00Z", "lat": 25.0, "lon": -80.9, "windSpeed": 130, "pressure": 929, "category": 4 }
-      ]
-    },
-    {
-      "id": "wilma-2005",
-      "name": "Hurricane Wilma",
-      "year": 2005,
-      "description": "Most intense hurricane ever recorded in the Atlantic basin",
-      "actualLandfall": {
-        "lat": 26.0,
-        "lon": -81.5,
-        "time": "2005-10-24T10:30:00Z",
-        "category": 3,
-        "windSpeed": 120,
-        "pressure": 950
-      },
-      "track": [
-        { "time": "2005-10-15T06:00:00Z", "lat": 17.5, "lon": -77.0, "windSpeed": 35, "pressure": 1006, "category": 0 },
-        { "time": "2005-10-18T06:00:00Z", "lat": 19.0, "lon": -84.5, "windSpeed": 80, "pressure": 985, "category": 1 },
-        { "time": "2005-10-19T00:00:00Z", "lat": 19.2, "lon": -85.0, "windSpeed": 175, "pressure": 882, "category": 5 },
-        { "time": "2005-10-20T06:00:00Z", "lat": 20.5, "lon": -86.5, "windSpeed": 150, "pressure": 900, "category": 4 },
-        { "time": "2005-10-22T06:00:00Z", "lat": 22.0, "lon": -85.0, "windSpeed": 125, "pressure": 950, "category": 3 },
-        { "time": "2005-10-24T00:00:00Z", "lat": 25.5, "lon": -81.0, "windSpeed": 120, "pressure": 950, "category": 3 },
-        { "time": "2005-10-24T10:30:00Z", "lat": 26.0, "lon": -81.5, "windSpeed": 120, "pressure": 950, "category": 3 }
-      ]
-    },
-    {
-      "id": "ian-2022",
-      "name": "Hurricane Ian",
+      "id": "ian-2022-day1",
+      "name": "Hurricane Ian - Day 1",
       "year": 2022,
-      "description": "Devastating Category 4 hurricane that caused catastrophic damage in Southwest Florida",
-      "actualLandfall": {
-        "lat": 26.6,
-        "lon": -82.3,
-        "time": "2022-09-28T19:05:00Z",
-        "category": 4,
-        "windSpeed": 150,
-        "pressure": 940
-      },
-      "track": [
-        { "time": "2022-09-23T06:00:00Z", "lat": 13.5, "lon": -61.0, "windSpeed": 35, "pressure": 1005, "category": 0 },
-        { "time": "2022-09-25T06:00:00Z", "lat": 16.5, "lon": -78.0, "windSpeed": 65, "pressure": 991, "category": 0 },
-        { "time": "2022-09-26T06:00:00Z", "lat": 17.8, "lon": -81.5, "windSpeed": 85, "pressure": 980, "category": 1 },
-        { "time": "2022-09-27T00:00:00Z", "lat": 19.5, "lon": -83.0, "windSpeed": 120, "pressure": 954, "category": 3 },
-        { "time": "2022-09-27T12:00:00Z", "lat": 20.8, "lon": -83.5, "windSpeed": 155, "pressure": 937, "category": 4 },
-        { "time": "2022-09-28T12:00:00Z", "lat": 25.0, "lon": -82.5, "windSpeed": 155, "pressure": 940, "category": 4 },
-        { "time": "2022-09-28T19:05:00Z", "lat": 26.6, "lon": -82.3, "windSpeed": 150, "pressure": 940, "category": 4 }
+      "description": "24-hour prediction game for Hurricane Ian's approach to Florida",
+      "gameStart": "2022-09-27T00:00:00Z",
+      "gameEnd": "2022-09-28T00:00:00Z",
+      "timeframes": [
+        {
+          "timeframe": "0000",
+          "time": "2022-09-27T00:00:00Z",
+          "type": "base",
+          "lat": 19.5,
+          "lon": -83.0,
+          "windSpeed": 120,
+          "pressure": 954,
+          "category": 3
+        },
+        {
+          "timeframe": "0600",
+          "time": "2022-09-27T06:00:00Z",
+          "type": "prediction",
+          "lat": 20.2,
+          "lon": -83.2,
+          "windSpeed": 135,
+          "pressure": 945,
+          "category": 4
+        },
+        {
+          "timeframe": "1200",
+          "time": "2022-09-27T12:00:00Z",
+          "type": "prediction",
+          "lat": 20.8,
+          "lon": -83.5,
+          "windSpeed": 155,
+          "pressure": 937,
+          "category": 4
+        },
+        {
+          "timeframe": "1800",
+          "time": "2022-09-27T18:00:00Z",
+          "type": "prediction",
+          "lat": 22.5,
+          "lon": -83.0,
+          "windSpeed": 155,
+          "pressure": 938,
+          "category": 4
+        },
+        {
+          "timeframe": "0000",
+          "time": "2022-09-28T00:00:00Z",
+          "type": "prediction",
+          "lat": 24.0,
+          "lon": -82.8,
+          "windSpeed": 155,
+          "pressure": 940,
+          "category": 4
+        }
       ]
     },
     {
-      "id": "harvey-2017",
-      "name": "Hurricane Harvey",
+      "id": "irma-2017-day1",
+      "name": "Hurricane Irma - Day 1",
       "year": 2017,
-      "description": "Category 4 hurricane that caused historic flooding in Texas",
-      "actualLandfall": {
-        "lat": 28.0,
-        "lon": -96.5,
-        "time": "2017-08-26T03:00:00Z",
-        "category": 4,
-        "windSpeed": 130,
-        "pressure": 937
-      },
-      "track": [
-        { "time": "2017-08-17T00:00:00Z", "lat": 11.5, "lon": -35.0, "windSpeed": 35, "pressure": 1007, "category": 0 },
-        { "time": "2017-08-18T06:00:00Z", "lat": 12.5, "lon": -44.0, "windSpeed": 45, "pressure": 1004, "category": 0 },
-        { "time": "2017-08-23T06:00:00Z", "lat": 22.0, "lon": -92.0, "windSpeed": 45, "pressure": 1002, "category": 0 },
-        { "time": "2017-08-24T06:00:00Z", "lat": 24.5, "lon": -94.5, "windSpeed": 65, "pressure": 994, "category": 0 },
-        { "time": "2017-08-25T00:00:00Z", "lat": 26.0, "lon": -95.5, "windSpeed": 110, "pressure": 961, "category": 2 },
-        { "time": "2017-08-25T18:00:00Z", "lat": 27.5, "lon": -96.0, "windSpeed": 130, "pressure": 938, "category": 4 },
-        { "time": "2017-08-26T03:00:00Z", "lat": 28.0, "lon": -96.5, "windSpeed": 130, "pressure": 937, "category": 4 }
+      "description": "24-hour prediction game for Hurricane Irma",
+      "gameStart": "2017-09-07T00:00:00Z",
+      "gameEnd": "2017-09-08T00:00:00Z",
+      "timeframes": [
+        {
+          "timeframe": "0000",
+          "time": "2017-09-07T00:00:00Z",
+          "type": "base",
+          "lat": 23.5,
+          "lon": -72.0,
+          "windSpeed": 185,
+          "pressure": 914,
+          "category": 5
+        },
+        {
+          "timeframe": "0600",
+          "time": "2017-09-07T06:00:00Z",
+          "type": "prediction",
+          "lat": 24.2,
+          "lon": -72.8,
+          "windSpeed": 180,
+          "pressure": 916,
+          "category": 5
+        },
+        {
+          "timeframe": "1200",
+          "time": "2017-09-07T12:00:00Z",
+          "type": "prediction",
+          "lat": 25.0,
+          "lon": -73.5,
+          "windSpeed": 175,
+          "pressure": 920,
+          "category": 5
+        },
+        {
+          "timeframe": "1800",
+          "time": "2017-09-07T18:00:00Z",
+          "type": "prediction",
+          "lat": 25.8,
+          "lon": -74.2,
+          "windSpeed": 165,
+          "pressure": 925,
+          "category": 5
+        },
+        {
+          "timeframe": "0000",
+          "time": "2017-09-08T00:00:00Z",
+          "type": "prediction",
+          "lat": 26.5,
+          "lon": -74.8,
+          "windSpeed": 160,
+          "pressure": 927,
+          "category": 5
+        }
+      ]
+    },
+    {
+      "id": "harvey-2017-day1",
+      "name": "Hurricane Harvey - Day 1",
+      "year": 2017,
+      "description": "24-hour prediction game for Hurricane Harvey's Texas landfall",
+      "gameStart": "2017-08-25T00:00:00Z",
+      "gameEnd": "2017-08-26T00:00:00Z",
+      "timeframes": [
+        {
+          "timeframe": "0000",
+          "time": "2017-08-25T00:00:00Z",
+          "type": "base",
+          "lat": 26.0,
+          "lon": -95.5,
+          "windSpeed": 110,
+          "pressure": 961,
+          "category": 2
+        },
+        {
+          "timeframe": "0600",
+          "time": "2017-08-25T06:00:00Z",
+          "type": "prediction",
+          "lat": 26.5,
+          "lon": -95.7,
+          "windSpeed": 115,
+          "pressure": 955,
+          "category": 3
+        },
+        {
+          "timeframe": "1200",
+          "time": "2017-08-25T12:00:00Z",
+          "type": "prediction",
+          "lat": 27.0,
+          "lon": -95.9,
+          "windSpeed": 125,
+          "pressure": 945,
+          "category": 3
+        },
+        {
+          "timeframe": "1800",
+          "time": "2017-08-25T18:00:00Z",
+          "type": "prediction",
+          "lat": 27.5,
+          "lon": -96.0,
+          "windSpeed": 130,
+          "pressure": 938,
+          "category": 4
+        },
+        {
+          "timeframe": "0000",
+          "time": "2017-08-26T00:00:00Z",
+          "type": "prediction",
+          "lat": 28.0,
+          "lon": -96.5,
+          "windSpeed": 130,
+          "pressure": 937,
+          "category": 4
+        }
       ]
     }
   ],
   "rotationSettings": {
-    "rotationType": "weekly",
-    "startDate": "2025-01-01T00:00:00Z",
-    "comment": "Storms rotate every Monday at 00:00 UTC"
+    "rotationType": "daily",
+    "comment": "Each storm lasts 24 hours, then rotates to next storm"
   }
 }
