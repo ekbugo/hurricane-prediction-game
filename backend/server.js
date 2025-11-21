@@ -397,6 +397,34 @@ app.get('/api/leaderboard/:stormId', async (req, res) => {
   }
 });
 
+// Get participants (all users who submitted predictions, no scores shown)
+app.get('/api/participants/:stormId', async (req, res) => {
+  try {
+    const { stormId } = req.params;
+    
+    const result = await pool.query(
+      `SELECT 
+        username,
+        COUNT(*) as predictions_count,
+        MIN(submitted_at) as first_prediction
+      FROM predictions
+      WHERE storm_id = $1
+      GROUP BY username
+      ORDER BY first_prediction ASC`,
+      [stormId]
+    );
+    
+    res.json({
+      stormId,
+      participants: result.rows,
+      totalParticipants: result.rows.length
+    });
+  } catch (error) {
+    console.error('Error fetching participants:', error);
+    res.status(500).json({ error: 'Failed to fetch participants' });
+  }
+});
+
 // Health check
 app.get('/api/health', async (req, res) => {
   try {
