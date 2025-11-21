@@ -1,16 +1,16 @@
 {
   "storms": [
     {
-      "id": "ian-2022-day1",
+      "id": "ian-2025-day1",
       "name": "Hurricane Ian - Day 1",
-      "year": 2022,
+      "year": 2025,
       "description": "24-hour prediction game for Hurricane Ian's approach to Florida",
-      "gameStart": "2022-09-27T00:00:00Z",
-      "gameEnd": "2022-09-28T00:00:00Z",
+      "gameStart": "2025-11-21T00:00:00Z",
+      "gameEnd": "2025-11-22T00:00:00Z",
       "timeframes": [
         {
           "timeframe": "0000",
-          "time": "2022-09-27T00:00:00Z",
+          "time": "2025-11-21T00:00:00Z",
           "type": "base",
           "lat": 19.5,
           "lon": -83.0,
@@ -20,7 +20,7 @@
         },
         {
           "timeframe": "0600",
-          "time": "2022-09-27T06:00:00Z",
+          "time": "2025-11-21T06:00:00Z",
           "type": "prediction",
           "lat": 20.2,
           "lon": -83.2,
@@ -30,7 +30,7 @@
         },
         {
           "timeframe": "1200",
-          "time": "2022-09-27T12:00:00Z",
+          "time": "2025-11-21T12:00:00Z",
           "type": "prediction",
           "lat": 20.8,
           "lon": -83.5,
@@ -40,7 +40,7 @@
         },
         {
           "timeframe": "1800",
-          "time": "2022-09-27T18:00:00Z",
+          "time": "2025-11-21T18:00:00Z",
           "type": "prediction",
           "lat": 22.5,
           "lon": -83.0,
@@ -50,7 +50,7 @@
         },
         {
           "timeframe": "0000",
-          "time": "2022-09-28T00:00:00Z",
+          "time": "2025-11-22T00:00:00Z",
           "type": "prediction",
           "lat": 24.0,
           "lon": -82.8,
