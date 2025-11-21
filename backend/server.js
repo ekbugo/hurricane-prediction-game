@@ -19,7 +19,7 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// Load historical storms from JSON file.
+// Load historical storms from JSON file
 let HISTORICAL_STORMS = [];
 
 function loadStorms() {
@@ -371,14 +371,17 @@ app.get('/api/leaderboard/:stormId', async (req, res) => {
   try {
     const { stormId } = req.params;
     
+    // Only sum scores that are not null (timeframes that have closed and been scored)
     const result = await pool.query(
       `SELECT 
         username,
         SUM(COALESCE(score, 0)) as total_score,
-        COUNT(*) as predictions_count
+        COUNT(*) as predictions_count,
+        COUNT(score) as scored_count
       FROM predictions
-      WHERE storm_id = $1
+      WHERE storm_id = $1 AND score IS NOT NULL
       GROUP BY username
+      HAVING COUNT(score) > 0
       ORDER BY total_score DESC
       LIMIT 100`,
       [stormId]
