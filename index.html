@@ -1,624 +1,446 @@
-//testing new branch
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hurricane Prediction Game</title>
+    <title>Hurricane Track Predictor</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
         }
-        .hurricane-icon {
-            animation: spin 10s linear infinite;
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
         }
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+        
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
         }
+        
+        .header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            color: white;
+            padding: 24px;
+            text-align: center;
+        }
+        
+        .hurricane-name {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .content {
+            display: flex;
+            min-height: 600px;
+        }
+        
+        .sidebar {
+            width: 250px;
+            padding: 24px;
+            background: #f8fafc;
+            border-right: 1px solid #e2e8f0;
+        }
+        
+        .sidebar h3 {
+            font-size: 16px;
+            color: #334155;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+        
+        .layer-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .layer-control:hover {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+        
+        .layer-control input[type="radio"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .layer-control label {
+            cursor: pointer;
+            font-size: 14px;
+            color: #475569;
+            font-weight: 500;
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
         #map {
-            height: 500px;
-            border-radius: 0.5rem;
             width: 100%;
+            height: 100%;
         }
-        .pulse {
-            animation: pulse 2s infinite;
+        
+        .predictions-sidebar {
+            width: 300px;
+            padding: 24px;
+            background: #f8fafc;
+            border-left: 1px solid #e2e8f0;
+            overflow-y: auto;
         }
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
+        
+        .predictions-sidebar h3 {
+            font-size: 16px;
+            color: #334155;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+        
+        .prediction-group {
+            margin-bottom: 16px;
+        }
+        
+        .prediction-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: #3b82f6;
+            color: white;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-weight: 600;
+        }
+        
+        .prediction-header:hover {
+            background: #2563eb;
+        }
+        
+        .prediction-header .chevron {
+            transition: transform 0.2s;
+        }
+        
+        .prediction-header.open .chevron {
+            transform: rotate(180deg);
+        }
+        
+        .prediction-content {
+            border: 2px solid #3b82f6;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            padding: 16px;
+            background: white;
+        }
+        
+        .prediction-content.closed {
+            display: none;
+        }
+        
+        .input-group {
+            margin-bottom: 12px;
+        }
+        
+        .input-group label {
+            display: block;
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+        
+        .starting-position {
+            background: #fef3c7;
+            border: 2px solid #fbbf24;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .starting-position h4 {
+            font-size: 14px;
+            color: #92400e;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+        
+        .starting-position p {
+            font-size: 13px;
+            color: #78350f;
+            margin-bottom: 4px;
+        }
+        
+        .starting-position strong {
+            color: #92400e;
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-blue-100 min-h-screen">
+<body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
 
-        // API Configuration - connects to your Railway backend
-        const API_BASE_URL = 'https://hurricane-prediction-game-production.up.railway.app/api';
-
-        // Demo hurricane data (fallback)
-        const DEMO_STORM = {
-            id: 'demo-2024',
-            name: "Hurricane Milton",
-            currentCategory: 3,
-            currentLat: 24.5,
-            currentLon: -82.3,
-            currentWindSpeed: 120,
-            currentPressure: 950,
-            status: "demo"
-        };
-
-        const HISTORICAL_TRACK = [
-            { lat: 18.5, lon: -88.0, time: 'Oct 5, 12:00', category: 1, windSpeed: 80 },
-            { lat: 19.2, lon: -87.5, time: 'Oct 6, 00:00', category: 1, windSpeed: 85 },
-            { lat: 20.0, lon: -86.8, time: 'Oct 6, 12:00', category: 2, windSpeed: 100 },
-            { lat: 21.0, lon: -85.5, time: 'Oct 7, 00:00', category: 2, windSpeed: 105 },
-            { lat: 22.3, lon: -84.2, time: 'Oct 7, 12:00', category: 3, windSpeed: 115 },
-            { lat: 23.5, lon: -83.0, time: 'Oct 8, 00:00', category: 3, windSpeed: 120 },
-            { lat: 24.5, lon: -82.3, time: 'Oct 8, 12:00', category: 3, windSpeed: 120 }
-        ];
-
-        const FORECAST_TRACK = [
-            { lat: 24.5, lon: -82.3, time: 'Oct 8, 12:00', category: 3, windSpeed: 120 },
-            { lat: 25.8, lon: -82.0, time: 'Oct 9, 00:00', category: 4, windSpeed: 135 },
-            { lat: 27.2, lon: -82.5, time: 'Oct 9, 12:00', category: 4, windSpeed: 140 },
-            { lat: 28.5, lon: -82.8, time: 'Oct 10, 00:00', category: 3, windSpeed: 125 },
-            { lat: 29.5, lon: -83.0, time: 'Oct 10, 12:00', category: 2, windSpeed: 100 }
-        ];
-
-        function HurricaneGameApp() {
-            const [activeStorm, setActiveStorm] = useState(DEMO_STORM);
-            const [isLiveData, setIsLiveData] = useState(false);
-            const [loading, setLoading] = useState(true);
-            const [historicalTrack, setHistoricalTrack] = useState(HISTORICAL_TRACK);
-            const [forecastTrack, setForecastTrack] = useState(FORECAST_TRACK);
-            const [predictions, setPredictions] = useState([]);
-            const [userPrediction, setUserPrediction] = useState({
-                username: '',
-                landfallLat: '',
-                landfallLon: '',
-                maxWindSpeed: '',
-                minPressure: '',
-                peakCategory: '',
-                landfallTime: ''
+        function HurricaneTrackerApp() {
+            const mapRef = useRef(null);
+            const mapInstanceRef = useRef(null);
+            const markersRef = useRef([]);
+            const polylineRef = useRef(null);
+            const steeringLayerRef = useRef(null);
+            
+            const [showSteeringCurrents, setShowSteeringCurrents] = useState(false);
+            const [predictions, setPredictions] = useState({
+                12: { lat: '', lon: '', open: false },
+                24: { lat: '', lon: '', open: false },
+                36: { lat: '', lon: '', open: false },
+                48: { lat: '', lon: '', open: false }
             });
-            const [view, setView] = useState('predict');
-            const [submitted, setSubmitted] = useState(false);
-            const [map, setMap] = useState(null);
-
-            // Fetch live storm data from backend
-            useEffect(() => {
-                const fetchLiveData = async () => {
-                    try {
-                        // Try to fetch weekly historical storm first
-                        const weeklyResponse = await fetch(`${API_BASE_URL}/storms/weekly`);
-                        
-                        if (weeklyResponse.ok) {
-                            const weeklyData = await weeklyResponse.json();
-                            
-                            if (weeklyData.storm) {
-                                // Update with weekly storm data
-                                setActiveStorm({
-                                    id: weeklyData.storm.id,
-                                    name: weeklyData.storm.name,
-                                    currentCategory: weeklyData.storm.currentCategory,
-                                    currentLat: weeklyData.storm.currentLat,
-                                    currentLon: weeklyData.storm.currentLon,
-                                    currentWindSpeed: weeklyData.storm.currentWindSpeed,
-                                    currentPressure: weeklyData.storm.currentPressure,
-                                    status: 'weekly-replay',
-                                    year: weeklyData.storm.year,
-                                    weekProgress: weeklyData.metadata.weekProgress,
-                                    daysRemaining: weeklyData.metadata.daysRemaining
-                                });
-                                
-                                // Update tracks
-                                if (weeklyData.historicalTrack) {
-                                    const historical = weeklyData.historicalTrack.map(p => ({
-                                        lat: p.lat,
-                                        lon: p.lon,
-                                        time: new Date(p.time).toLocaleString('en-US', { 
-                                            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
-                                        }),
-                                        category: p.category,
-                                        windSpeed: p.windSpeed
-                                    }));
-                                    setHistoricalTrack(historical);
-                                }
-                                
-                                if (weeklyData.forecastTrack) {
-                                    const forecast = weeklyData.forecastTrack.map(p => ({
-                                        lat: p.lat,
-                                        lon: p.lon,
-                                        time: new Date(p.time).toLocaleString('en-US', { 
-                                            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
-                                        }),
-                                        category: p.category,
-                                        windSpeed: p.windSpeed
-                                    }));
-                                    setForecastTrack(forecast);
-                                }
-                                
-                                setIsLiveData(true);
-                                console.log('Weekly storm loaded:', weeklyData);
-                                setLoading(false);
-                                return;
-                            }
-                        }
-                        
-                        // Fallback to checking real NHC data
-                        const response = await fetch(`${API_BASE_URL}/storms/current`);
-                        const data = await response.json();
-                        
-                        if (data.activeStorms && data.activeStorms.length > 0) {
-                            setIsLiveData(true);
-                            console.log('Live storm data:', data);
-                        }
-                    } catch (error) {
-                        console.log('Using demo mode:', error);
-                    } finally {
-                        setLoading(false);
-                    }
-                };
-                
-                fetchLiveData();
-            }, []);
+            
+            // Sample hurricane data - you can modify this
+            const hurricaneData = {
+                name: "Hurricane Maria",
+                startLat: 25.5,
+                startLon: -75.2
+            };
 
             // Initialize map
             useEffect(() => {
-                if (!map && typeof L !== 'undefined') {
-                    const newMap = L.map('map').setView([26.0, -82.0], 6);
-                    
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                        attribution: '© OpenStreetMap contributors'
-                    }).addTo(newMap);
+                if (!mapInstanceRef.current) {
+                    const map = L.map(mapRef.current).setView(
+                        [hurricaneData.startLat, hurricaneData.startLon], 
+                        6
+                    );
 
-                    setMap(newMap);
+                    // Add base map tile layer
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap contributors',
+                        maxZoom: 18
+                    }).addTo(map);
+
+                    mapInstanceRef.current = map;
+
+                    // Add starting position marker
+                    const startMarker = L.marker([hurricaneData.startLat, hurricaneData.startLon], {
+                        icon: L.divIcon({
+                            className: 'custom-marker',
+                            html: '<div style="background: red; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+                            iconSize: [22, 22],
+                            iconAnchor: [11, 11]
+                        })
+                    }).addTo(map);
+                    
+                    startMarker.bindPopup(`<b>Starting Position</b><br>Lat: ${hurricaneData.startLat}<br>Lon: ${hurricaneData.startLon}`);
+                    markersRef.current.push(startMarker);
                 }
             }, []);
 
-            // Update map with hurricane track
+            // Toggle steering currents layer
             useEffect(() => {
-                if (!map || !activeStorm) return;
+                const map = mapInstanceRef.current;
+                if (!map) return;
 
-                // Clear all existing layers except the base tile layer
-                map.eachLayer((layer) => {
-                    if (!(layer instanceof L.TileLayer)) {
-                        map.removeLayer(layer);
+                if (showSteeringCurrents) {
+                    // Add a simple overlay to represent steering currents
+                    // In a real app, this would be actual meteorological data
+                    steeringLayerRef.current = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        opacity: 0.3,
+                        attribution: 'Steering Currents (Demo)'
+                    }).addTo(map);
+                } else {
+                    if (steeringLayerRef.current) {
+                        map.removeLayer(steeringLayerRef.current);
+                        steeringLayerRef.current = null;
                     }
-                });
+                }
+            }, [showSteeringCurrents]);
 
-                const getCategoryColor = (cat) => {
-                    const colors = {
-                        1: '#FBBF24',
-                        2: '#F59E0B',
-                        3: '#EF4444',
-                        4: '#DC2626',
-                        5: '#7C3AED'
-                    };
-                    return colors[cat] || '#6B7280';
-                };
+            // Update map with predictions
+            useEffect(() => {
+                const map = mapInstanceRef.current;
+                if (!map) return;
 
-                // Draw historical track
-                if (historicalTrack && historicalTrack.length > 0) {
-                    const historicalPath = historicalTrack.map(p => [p.lat, p.lon]);
-                    L.polyline(historicalPath, { color: '#4B5563', weight: 4, opacity: 0.8 })
-                        .addTo(map).bindPopup('Historical Track');
-
-                    historicalTrack.forEach((point) => {
-                    const color = getCategoryColor(point.category);
-                    const icon = L.divIcon({
-                        className: 'custom-icon',
-                        html: `<div style="background-color: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>`,
-                        iconSize: [12, 12]
-                    });
-                    L.marker([point.lat, point.lon], { icon }).addTo(map)
-                        .bindPopup(`${point.time}<br>Cat ${point.category}<br>${point.windSpeed} mph`);
-                    });
+                // Clear previous prediction markers (keep starting marker)
+                while (markersRef.current.length > 1) {
+                    const marker = markersRef.current.pop();
+                    map.removeLayer(marker);
                 }
 
-                // Draw forecast track
-                if (forecastTrack && forecastTrack.length > 0) {
-                    const forecastPath = forecastTrack.map(p => [p.lat, p.lon]);
-                    L.polyline(forecastPath, { color: '#EF4444', weight: 4, opacity: 0.8, dashArray: '10, 10' })
-                        .addTo(map).bindPopup('Forecast Track');
-
-                    forecastTrack.forEach((point) => {
-                    const color = getCategoryColor(point.category);
-                    const icon = L.divIcon({
-                        className: 'custom-icon',
-                        html: `<div style="background-color: ${color}; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white;"></div>`,
-                        iconSize: [16, 16]
-                    });
-                    L.marker([point.lat, point.lon], { icon }).addTo(map)
-                        .bindPopup(`Forecast: ${point.time}<br>Cat ${point.category}<br>${point.windSpeed} mph`);
-                    });
+                // Clear previous polyline
+                if (polylineRef.current) {
+                    map.removeLayer(polylineRef.current);
+                    polylineRef.current = null;
                 }
 
-                // Current position
-                const currentIcon = L.divIcon({
-                    className: 'custom-icon pulse',
-                    html: `<div style="background-color: #EF4444; width: 24px; height: 24px; border-radius: 50%; border: 4px solid white;"></div>`,
-                    iconSize: [24, 24]
-                });
-                L.marker([activeStorm.currentLat, activeStorm.currentLon], { icon: currentIcon })
-                    .addTo(map)
-                    .bindPopup(`<strong>${activeStorm.name}</strong><br>Cat ${activeStorm.currentCategory}<br>${activeStorm.currentWindSpeed} mph`)
-                    .openPopup();
-
-                const allPoints = [...historicalTrack, ...forecastTrack].map(p => [p.lat, p.lon]);
-                if (allPoints.length > 0) {
-                    map.fitBounds(allPoints, { padding: [50, 50] });
-                }
-            }, [map, activeStorm, historicalTrack, forecastTrack]);
-
-            const handleInputChange = (e) => {
-                setUserPrediction({
-                    ...userPrediction,
-                    [e.target.name]: e.target.value
-                });
-            };
-
-            const handleSubmit = async (e) => {
-                e.preventDefault();
+                // Collect all valid prediction points
+                const points = [[hurricaneData.startLat, hurricaneData.startLon]];
                 
-                if (!userPrediction.username) {
-                    alert('Please enter your username');
-                    return;
-                }
-
-                try {
-                    // Send prediction to backend
-                    const response = await fetch(`${API_BASE_URL}/predictions`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            username: userPrediction.username,
-                            stormId: activeStorm.id,
-                            landfallLat: parseFloat(userPrediction.landfallLat) || activeStorm.currentLat,
-                            landfallLon: parseFloat(userPrediction.landfallLon) || activeStorm.currentLon,
-                            landfallTime: userPrediction.landfallTime || new Date().toISOString(),
-                            peakCategory: parseInt(userPrediction.peakCategory) || activeStorm.currentCategory,
-                            peakWindSpeed: parseInt(userPrediction.peakWindSpeed) || activeStorm.currentWindSpeed
-                        })
-                    });
-
-                    if (!response.ok) {
-                        throw new Error('Failed to submit prediction');
+                [12, 24, 36, 48].forEach(hours => {
+                    const pred = predictions[hours];
+                    if (pred.lat && pred.lon) {
+                        const lat = parseFloat(pred.lat);
+                        const lon = parseFloat(pred.lon);
+                        
+                        if (!isNaN(lat) && !isNaN(lon)) {
+                            points.push([lat, lon]);
+                            
+                            // Add marker for this prediction
+                            const marker = L.marker([lat, lon], {
+                                icon: L.divIcon({
+                                    className: 'custom-marker',
+                                    html: `<div style="background: #3b82f6; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+                                    iconSize: [18, 18],
+                                    iconAnchor: [9, 9]
+                                })
+                            }).addTo(map);
+                            
+                            marker.bindPopup(`<b>${hours} Hour Prediction</b><br>Lat: ${lat}<br>Lon: ${lon}`);
+                            markersRef.current.push(marker);
+                        }
                     }
+                });
 
-                    const result = await response.json();
-                    console.log('Prediction submitted:', result);
-
-                    setSubmitted(true);
-                    
-                    // Refresh leaderboard
-                    await fetchLeaderboard();
-                    
-                    setTimeout(() => setView('leaderboard'), 2000);
-                } catch (error) {
-                    console.error('Error submitting prediction:', error);
-                    alert('Failed to submit prediction. Please try again.');
+                // Draw dashed line connecting all points
+                if (points.length > 1) {
+                    polylineRef.current = L.polyline(points, {
+                        color: '#3b82f6',
+                        weight: 3,
+                        dashArray: '10, 10',
+                        opacity: 0.8
+                    }).addTo(map);
                 }
+            }, [predictions]);
+
+            const handlePredictionChange = (hours, field, value) => {
+                setPredictions(prev => ({
+                    ...prev,
+                    [hours]: {
+                        ...prev[hours],
+                        [field]: value
+                    }
+                }));
             };
 
-            // Fetch leaderboard from backend
-            const fetchLeaderboard = async () => {
-                try {
-                    const response = await fetch(`${API_BASE_URL}/leaderboard/${activeStorm.id}`);
-                    const data = await response.json();
-                    setPredictions(data.predictions || []);
-                } catch (error) {
-                    console.error('Error fetching leaderboard:', error);
-                }
-            };
-
-            // Load leaderboard when storm changes or view changes to leaderboard
-            useEffect(() => {
-                if (view === 'leaderboard' && activeStorm) {
-                    fetchLeaderboard();
-                }
-            }, [view, activeStorm]);
-
-            const getLeaderboard = () => {
-                return predictions
-                    .filter(p => p.stormId === activeStorm.id)
-                    .sort((a, b) => (b.score || 0) - (a.score || 0))
-                    .slice(0, 10);
-            };
-
-            const getRankColor = (index) => {
-                if (index === 0) return 'bg-yellow-400 text-yellow-900';
-                if (index === 1) return 'bg-gray-300 text-gray-900';
-                if (index === 2) return 'bg-orange-400 text-orange-900';
-                return 'bg-blue-100 text-blue-900';
+            const togglePrediction = (hours) => {
+                setPredictions(prev => ({
+                    ...prev,
+                    [hours]: {
+                        ...prev[hours],
+                        open: !prev[hours].open
+                    }
+                }));
             };
 
             return (
-                <div className="container mx-auto px-4 py-8 max-w-6xl">
-                    {/* Status Banner */}
-                    <div className={`border-l-4 p-4 mb-6 ${isLiveData ? 'bg-green-50 border-green-400' : 'bg-yellow-50 border-yellow-400'}`}>
-                        <p className="text-sm">
-                            {isLiveData ? (
-                                <>
-                                    <strong>🔄 Weekly Historical Replay:</strong> {activeStorm.name} ({activeStorm.year}) • 
-                                    Week Progress: {activeStorm.weekProgress}% • 
-                                    {activeStorm.daysRemaining} days until next storm
-                                </>
-                            ) : (
-                                <><strong>🌀 Demo Mode:</strong> No active hurricanes right now. Showing sample data from Hurricane Milton.</>
-                            )}
-                        </p>
+                <div className="app-container">
+                    <div className="header">
+                        <h1 className="hurricane-name">{hurricaneData.name}</h1>
                     </div>
-
-                    {/* Header */}
-                    <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-                        <div className="flex items-center justify-between flex-wrap">
-                            <div className="flex items-center gap-4">
-                                <div className="text-6xl hurricane-icon">🌀</div>
-                                <div>
-                                    <h1 className="text-3xl font-bold text-gray-800">Hurricane Prediction Game</h1>
-                                    <p className="text-gray-600">Test your forecasting skills</p>
-                                </div>
-                            </div>
-                            <div className="text-right mt-4 sm:mt-0">
-                                <div className="text-sm text-gray-500">Active Event</div>
-                                <div className="text-2xl font-bold text-red-500">{activeStorm.name}</div>
-                                <div className="text-sm text-gray-600">Category {activeStorm.currentCategory}</div>
+                    
+                    <div className="content">
+                        <div className="sidebar">
+                            <h3>Map Layers</h3>
+                            <div className="layer-control">
+                                <input 
+                                    type="radio" 
+                                    id="steering-currents"
+                                    checked={showSteeringCurrents}
+                                    onChange={(e) => setShowSteeringCurrents(e.target.checked)}
+                                />
+                                <label htmlFor="steering-currents">Steering Currents</label>
                             </div>
                         </div>
-                    </div>
-
-                    {/* Navigation */}
-                    <div className="flex gap-4 mb-6">
-                        <button
-                            onClick={() => setView('predict')}
-                            className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all ${
-                                view === 'predict' 
-                                    ? 'bg-blue-600 text-white shadow-lg' 
-                                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                            }`}
-                        >
-                            📊 Make Prediction
-                        </button>
-                        <button
-                            onClick={() => setView('leaderboard')}
-                            className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all ${
-                                view === 'leaderboard' 
-                                    ? 'bg-blue-600 text-white shadow-lg' 
-                                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                            }`}
-                        >
-                            🏆 Leaderboard
-                        </button>
-                    </div>
-
-                    {/* Storm Info */}
-                    <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-                        <h2 className="text-xl font-bold text-gray-800 mb-4">Current Storm Data</h2>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div className="bg-blue-50 p-4 rounded-lg">
-                                <div className="text-sm text-gray-600">Wind Speed</div>
-                                <div className="text-2xl font-bold text-blue-600">{activeStorm.currentWindSpeed} mph</div>
-                            </div>
-                            <div className="bg-purple-50 p-4 rounded-lg">
-                                <div className="text-sm text-gray-600">Pressure</div>
-                                <div className="text-2xl font-bold text-purple-600">{activeStorm.currentPressure} mb</div>
-                            </div>
-                            <div className="bg-green-50 p-4 rounded-lg">
-                                <div className="text-sm text-gray-600">Position</div>
-                                <div className="text-lg font-bold text-green-600">
-                                    {activeStorm.currentLat.toFixed(1)}°N<br/>
-                                    {Math.abs(activeStorm.currentLon).toFixed(1)}°W
-                                </div>
-                            </div>
-                            <div className="bg-red-50 p-4 rounded-lg">
-                                <div className="text-sm text-gray-600">Category</div>
-                                <div className="text-2xl font-bold text-red-600">Cat {activeStorm.currentCategory}</div>
-                            </div>
+                        
+                        <div className="map-container">
+                            <div id="map" ref={mapRef}></div>
                         </div>
-                    </div>
-
-                    {/* Hurricane Track Map */}
-                    <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-                        <h2 className="text-xl font-bold text-gray-800 mb-4">🗺️ Hurricane Track & Forecast</h2>
-                        <div id="map" className="mb-4"></div>
-                    </div>
-
-                    {/* Main Content */}
-                    {view === 'predict' ? (
-                        <div className="bg-white rounded-lg shadow-lg p-6">
-                            <h2 className="text-2xl font-bold text-gray-800 mb-6">Submit Your Prediction</h2>
+                        
+                        <div className="predictions-sidebar">
+                            <h3>Your Predictions</h3>
                             
-                            {submitted ? (
-                                <div className="text-center py-12">
-                                    <div className="text-6xl mb-4">✅</div>
-                                    <h3 className="text-2xl font-bold text-green-600 mb-2">Prediction Submitted!</h3>
-                                    <p className="text-gray-600">Check the leaderboard to see how you rank</p>
-                                </div>
-                            ) : (
-                                <form onSubmit={handleSubmit} className="space-y-6">
-                                    <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Username *</label>
-                                        <input
-                                            type="text"
-                                            name="username"
-                                            value={userPrediction.username}
-                                            onChange={handleInputChange}
-                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                            placeholder="Enter your username"
-                                            required
-                                        />
-                                    </div>
-
-                                    <div className="grid md:grid-cols-2 gap-6">
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Landfall Latitude (°N) *</label>
-                                            <input
-                                                type="number"
-                                                step="0.1"
-                                                name="landfallLat"
-                                                value={userPrediction.landfallLat}
-                                                onChange={handleInputChange}
-                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                placeholder="e.g., 28.5"
-                                                required
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Landfall Longitude (°W) *</label>
-                                            <input
-                                                type="number"
-                                                step="0.1"
-                                                name="landfallLon"
-                                                value={userPrediction.landfallLon}
-                                                onChange={handleInputChange}
-                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                placeholder="e.g., -82.5"
-                                                required
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid md:grid-cols-2 gap-6">
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Maximum Wind Speed (mph) *</label>
-                                            <input
-                                                type="number"
-                                                name="maxWindSpeed"
-                                                value={userPrediction.maxWindSpeed}
-                                                onChange={handleInputChange}
-                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                placeholder="e.g., 130"
-                                                min="39"
-                                                max="200"
-                                                required
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Minimum Pressure (mb) *</label>
-                                            <input
-                                                type="number"
-                                                name="minPressure"
-                                                value={userPrediction.minPressure}
-                                                onChange={handleInputChange}
-                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                placeholder="e.g., 945"
-                                                min="850"
-                                                max="1013"
-                                                required
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid md:grid-cols-2 gap-6">
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Peak Category *</label>
-                                            <select
-                                                name="peakCategory"
-                                                value={userPrediction.peakCategory}
-                                                onChange={handleInputChange}
-                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                required
-                                            >
-                                                <option value="">Select category</option>
-                                                <option value="1">Category 1</option>
-                                                <option value="2">Category 2</option>
-                                                <option value="3">Category 3</option>
-                                                <option value="4">Category 4</option>
-                                                <option value="5">Category 5</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Expected Landfall Time *</label>
-                                            <input
-                                                type="datetime-local"
-                                                name="landfallTime"
-                                                value={userPrediction.landfallTime}
-                                                onChange={handleInputChange}
-                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                required
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <button
-                                        type="submit"
-                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg transition-all transform hover:scale-105 shadow-lg"
+                            <div className="starting-position">
+                                <h4>Starting Position</h4>
+                                <p><strong>Latitude:</strong> {hurricaneData.startLat}°</p>
+                                <p><strong>Longitude:</strong> {hurricaneData.startLon}°</p>
+                            </div>
+                            
+                            {[12, 24, 36, 48].map(hours => (
+                                <div key={hours} className="prediction-group">
+                                    <div 
+                                        className={`prediction-header ${predictions[hours].open ? 'open' : ''}`}
+                                        onClick={() => togglePrediction(hours)}
                                     >
-                                        🎯 Submit Prediction
-                                    </button>
-                                </form>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="bg-white rounded-lg shadow-lg p-6">
-                            <h2 className="text-2xl font-bold text-gray-800 mb-6">🏆 Leaderboard - {activeStorm.name}</h2>
-                            
-                            {getLeaderboard().length === 0 ? (
-                                <div className="text-center py-12">
-                                    <div className="text-6xl mb-4">📊</div>
-                                    <p className="text-gray-600">No predictions yet. Be the first to compete!</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {getLeaderboard().map((pred, index) => (
-                                        <div
-                                            key={pred.id}
-                                            className={`flex items-center gap-4 p-4 rounded-lg ${getRankColor(index)} transition-all hover:shadow-md`}
-                                        >
-                                            <div className="text-3xl font-bold w-12 text-center">
-                                                {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className="font-bold text-lg">{pred.username}</div>
-                                                <div className="text-sm opacity-75">
-                                                    Predicted: Cat {pred.peakCategory || 'N/A'} • 
-                                                    {pred.peakWindSpeed ? `${pred.peakWindSpeed} mph` : 'N/A'} • 
-                                                    Landfall: {pred.landfallLat ? `${Number(pred.landfallLat).toFixed(1)}°N` : 'N/A'}, 
-                                                    {pred.landfallLon ? `${Math.abs(Number(pred.landfallLon)).toFixed(1)}°W` : 'N/A'}
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="text-2xl font-bold">{pred.score || 'Pending'}</div>
-                                                <div className="text-sm opacity-75">{pred.accuracy ? `${pred.accuracy}% accuracy` : 'Not scored yet'}</div>
-                                            </div>
+                                        <span>{hours} Hour Forecast</span>
+                                        <span className="chevron">▼</span>
+                                    </div>
+                                    <div className={`prediction-content ${predictions[hours].open ? '' : 'closed'}`}>
+                                        <div className="input-group">
+                                            <label>Latitude</label>
+                                            <input 
+                                                type="number" 
+                                                step="0.1"
+                                                placeholder="e.g., 26.5"
+                                                value={predictions[hours].lat}
+                                                onChange={(e) => handlePredictionChange(hours, 'lat', e.target.value)}
+                                            />
                                         </div>
-                                    ))}
+                                        <div className="input-group">
+                                            <label>Longitude</label>
+                                            <input 
+                                                type="number" 
+                                                step="0.1"
+                                                placeholder="e.g., -74.2"
+                                                value={predictions[hours].lon}
+                                                onChange={(e) => handlePredictionChange(hours, 'lon', e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
-                            )}
+                            ))}
                         </div>
-                    )}
-
-                    {/* Footer */}
-                    <div className="mt-8 text-center text-gray-600 text-sm">
-                        <p>🌀 Hurricane Prediction Game</p>
-                        <p className="mt-2">
-                            {isLiveData 
-                                ? `✅ Weekly Historical Replay: ${activeStorm.name} (${activeStorm.year}) - Resets every Monday` 
-                                : '⚠️ Demo mode - Enable weekly replays by connecting to backend'
-                            }
-                        </p>
-                        <p className="mt-1 text-xs">Backend: {API_BASE_URL}</p>
                     </div>
                 </div>
             );
         }
 
-        ReactDOM.render(<HurricaneGameApp />, document.getElementById('root'));
+        ReactDOM.render(<HurricaneTrackerApp />, document.getElementById('root'));
     </script>
 </body>
 </html>
