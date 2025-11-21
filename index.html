@@ -151,15 +151,30 @@
                     return colors[cat] || '#6B7280';
                 };
 
-                // Draw historical track (all timeframes up to current)
-                const allPoints = gameState.timeframes.map(tf => [tf.lat, tf.lon]);
-                if (allPoints.length > 1) {
-                    L.polyline(allPoints, { color: '#4B5563', weight: 4, opacity: 0.8 })
-                        .addTo(map).bindPopup('Storm Track');
+                // Determine which timeframes have been "released" (past timeframes)
+                const now = new Date();
+                const gameStart = new Date(gameState.storm.gameStart);
+                const hoursSinceStart = (now - gameStart) / (1000 * 60 * 60);
+                
+                // Only show timeframes that have passed
+                const releasedTimeframes = gameState.timeframes.filter(tf => {
+                    if (tf.type === 'base') return true; // Always show base
+                    if (tf.timeframe === '0600') return hoursSinceStart >= 6;
+                    if (tf.timeframe === '1200') return hoursSinceStart >= 12;
+                    if (tf.timeframe === '1800') return hoursSinceStart >= 18;
+                    if (tf.timeframe === '0000') return hoursSinceStart >= 24;
+                    return false;
+                });
+
+                // Draw storm track (only released points)
+                const releasedPoints = releasedTimeframes.map(tf => [tf.lat, tf.lon]);
+                if (releasedPoints.length > 1) {
+                    L.polyline(releasedPoints, { color: '#4B5563', weight: 4, opacity: 0.8 })
+                        .addTo(map).bindPopup('Actual Storm Track');
                 }
 
-                // Plot each timeframe
-                gameState.timeframes.forEach((tf, index) => {
+                // Plot each released timeframe
+                releasedTimeframes.forEach((tf) => {
                     const color = getCategoryColor(tf.category);
                     const icon = L.divIcon({
                         className: 'custom-icon',
@@ -168,11 +183,24 @@
                     });
                     
                     L.marker([tf.lat, tf.lon], { icon }).addTo(map)
-                        .bindPopup(`<strong>${tf.timeframe}</strong><br>Cat ${tf.category}<br>${tf.windSpeed} mph<br>${tf.pressure} mb`);
+                        .bindPopup(`<strong>${tf.timeframe} ${tf.type === 'base' ? '(Base)' : '(Actual)'}</strong><br>Cat ${tf.category}<br>${tf.windSpeed} mph<br>${tf.pressure} mb`);
                 });
 
-                // Draw user's predictions (green)
+                // Draw user's predictions (green) with connecting line
                 if (userPredictions.length > 0) {
+                    const predictionPoints = userPredictions.map(pred => [pred.predicted_lat, pred.predicted_lon]);
+                    
+                    // Draw line connecting predictions
+                    if (predictionPoints.length > 1) {
+                        L.polyline(predictionPoints, { 
+                            color: '#10B981', 
+                            weight: 4, 
+                            opacity: 0.9, 
+                            dashArray: '10, 10' 
+                        }).addTo(map).bindPopup('Your Prediction Track');
+                    }
+                    
+                    // Draw individual prediction points
                     userPredictions.forEach(pred => {
                         const icon = L.divIcon({
                             className: 'custom-icon',
@@ -181,11 +209,18 @@
                         });
                         
                         L.marker([pred.predicted_lat, pred.predicted_lon], { icon }).addTo(map)
-                            .bindPopup(`<strong>Your ${pred.timeframe} Prediction</strong><br>${pred.predicted_wind_speed} mph`);
+                            .bindPopup(`<strong>Your ${pred.timeframe} Prediction</strong><br>${pred.predicted_wind_speed} mph<br>${pred.predicted_pressure} mb`);
                     });
                 }
 
-                map.fitBounds(allPoints, { padding: [50, 50] });
+                // Fit map to show all points
+                const allMapPoints = [...releasedPoints];
+                if (userPredictions.length > 0) {
+                    userPredictions.forEach(pred => allMapPoints.push([pred.predicted_lat, pred.predicted_lon]));
+                }
+                if (allMapPoints.length > 0) {
+                    map.fitBounds(allMapPoints, { padding: [50, 50] });
+                }
             }, [map, gameState, userPredictions]);
 
             const handlePredictionChange = (field, value) => {
@@ -284,6 +319,9 @@
                             <div>
                                 <h1 className="text-4xl font-bold text-gray-800">🌀 {gameState.storm.name}</h1>
                                 <p className="text-gray-600">24-Hour Prediction Challenge</p>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    Current Time (UTC): {new Date().toUTCString()}
+                                </p>
                             </div>
                             <div className="flex gap-4">
                                 <button
@@ -390,6 +428,28 @@
                                     const isSubmitted = status === 'submitted';
                                     const isLocked = status === 'locked';
 
+                                    // Determine if this is a past or future locked timeframe
+                                    const now = new Date();
+                                    const gameStart = new Date(gameState.storm.gameStart);
+                                    const hoursSinceStart = (now - gameStart) / (1000 * 60 * 60);
+                                    
+                                    let isPastTimeframe = false;
+                                    let hoursUntilUnlock = 0;
+                                    
+                                    if (tf.timeframe === '0600') {
+                                        isPastTimeframe = hoursSinceStart >= 6;
+                                        hoursUntilUnlock = 6 - hoursSinceStart;
+                                    } else if (tf.timeframe === '1200') {
+                                        isPastTimeframe = hoursSinceStart >= 12;
+                                        hoursUntilUnlock = 12 - hoursSinceStart;
+                                    } else if (tf.timeframe === '1800') {
+                                        isPastTimeframe = hoursSinceStart >= 18;
+                                        hoursUntilUnlock = 18 - hoursSinceStart;
+                                    } else if (tf.timeframe === '0000') {
+                                        isPastTimeframe = hoursSinceStart >= 24;
+                                        hoursUntilUnlock = 24 - hoursSinceStart;
+                                    }
+
                                     const bgColor = isActive ? 'bg-green-50' : 'bg-gray-100';
                                     const borderColor = isActive ? 'border-green-500' : 'border-gray-300';
 
@@ -397,9 +457,14 @@
                                         <div key={tf.timeframe} className={`rounded-lg p-4 border-2 ${bgColor} ${borderColor}`}>
                                             <div className="flex items-center justify-between mb-3">
                                                 <h3 className="font-bold text-gray-800">{tf.timeframe} Prediction</h3>
-                                                {isLocked && !isSubmitted && (
+                                                {isLocked && !isSubmitted && !isPastTimeframe && hoursUntilUnlock > 0 && (
                                                     <span className="text-sm bg-gray-700 text-white px-3 py-1 rounded">
-                                                        Timeframe will open in: {formatTimeUntilUnlock(gameState.nextUnlockHours)}
+                                                        Opens in: {formatTimeUntilUnlock(hoursUntilUnlock)}
+                                                    </span>
+                                                )}
+                                                {isLocked && !isSubmitted && isPastTimeframe && (
+                                                    <span className="text-sm bg-red-600 text-white px-3 py-1 rounded">
+                                                        ⏱️ Closed - Missed
                                                     </span>
                                                 )}
                                                 {isSubmitted && (
