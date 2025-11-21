@@ -55,8 +55,14 @@ loadStorms();
 // Initialize database table
 async function initializeDatabase() {
   try {
+    // Drop old table structure and create new one
+    console.log('🔄 Dropping old predictions table...');
+    await pool.query(`DROP TABLE IF EXISTS predictions`);
+    console.log('✅ Old table dropped');
+    
+    // Create new table with prediction_points
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS predictions (
+      CREATE TABLE predictions (
         id SERIAL PRIMARY KEY,
         prediction_id VARCHAR(50) UNIQUE NOT NULL,
         username VARCHAR(100) NOT NULL,
@@ -68,7 +74,7 @@ async function initializeDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log('✅ Database table initialized');
+    console.log('✅ New predictions table created with prediction_points column');
   } catch (error) {
     console.error('⚠️ Error initializing database:', error.message);
   }
