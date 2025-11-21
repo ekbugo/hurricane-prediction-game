@@ -19,9 +19,6 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// In-memory storage for active storms
-let activeStorms = [];
-
 // Load historical storms from JSON file
 let HISTORICAL_STORMS = [];
 
@@ -33,290 +30,274 @@ function loadStorms() {
     HISTORICAL_STORMS = parsed.storms;
     console.log(`✅ Loaded ${HISTORICAL_STORMS.length} historical storms from storms.json`);
   } catch (error) {
-    console.error('⚠️ Error loading storms.json, using fallback data:', error.message);
-    HISTORICAL_STORMS = [
-      {
-        id: 'irma-2017',
-        name: 'Hurricane Irma',
-        year: 2017,
-        actualLandfall: { lat: 25.0, lon: -80.9, time: '2017-09-10T13:00:00Z', category: 4, windSpeed: 130, pressure: 929 },
-        track: [
-          { time: '2017-08-30T06:00:00Z', lat: 16.5, lon: -27.9, windSpeed: 35, pressure: 1008, category: 0 },
-          { time: '2017-09-10T13:00:00Z', lat: 25.0, lon: -80.9, windSpeed: 130, pressure: 929, category: 4 }
-        ]
-      }
-    ];
+    console.error('⚠️ Error loading storms.json:', error.message);
+    HISTORICAL_STORMS = [];
   }
 }
 
-// Load storms on startup
 loadStorms();
 
 // Initialize database table
 async function initializeDatabase() {
   try {
-    // Drop old table structure and create new one
-    console.log('🔄 Dropping old predictions table...');
     await pool.query(`DROP TABLE IF EXISTS predictions`);
-    console.log('✅ Old table dropped');
+    console.log('✅ Old predictions table dropped');
     
-    // Create new table with prediction_points
     await pool.query(`
       CREATE TABLE predictions (
         id SERIAL PRIMARY KEY,
         prediction_id VARCHAR(50) UNIQUE NOT NULL,
         username VARCHAR(100) NOT NULL,
         storm_id VARCHAR(50) NOT NULL,
-        prediction_points JSONB NOT NULL,
-        submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        timeframe VARCHAR(10) NOT NULL,
+        predicted_lat DECIMAL(10, 6) NOT NULL,
+        predicted_lon DECIMAL(10, 6) NOT NULL,
+        predicted_wind_speed INTEGER NOT NULL,
+        predicted_pressure INTEGER NOT NULL,
+        actual_lat DECIMAL(10, 6),
+        actual_lon DECIMAL(10, 6),
+        actual_wind_speed INTEGER,
+        actual_pressure INTEGER,
         score INTEGER,
-        accuracy DECIMAL(5, 2),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(username, storm_id, timeframe)
       )
     `);
-    console.log('✅ New predictions table created with prediction_points column');
+    
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_storm_timeframe ON predictions(storm_id, timeframe);
+      CREATE INDEX IF NOT EXISTS idx_username_storm ON predictions(username, storm_id);
+    `);
+    
+    console.log('✅ New predictions table created');
   } catch (error) {
     console.error('⚠️ Error initializing database:', error.message);
   }
 }
 
-// Initialize database on startup
 initializeDatabase();
 
-// Get current week's storm
-function getCurrentWeekStorm() {
+// Get current active storm (24-hour rotation)
+function getCurrentStorm() {
+  if (HISTORICAL_STORMS.length === 0) return null;
+  
   const referenceDate = new Date('2025-01-01T00:00:00Z');
   const now = new Date();
-  const weeksSinceReference = Math.floor((now - referenceDate) / (7 * 24 * 60 * 60 * 1000));
-  const currentStormIndex = weeksSinceReference % HISTORICAL_STORMS.length;
+  const daysSinceReference = Math.floor((now - referenceDate) / (24 * 60 * 60 * 1000));
+  const currentStormIndex = daysSinceReference % HISTORICAL_STORMS.length;
+  
   return HISTORICAL_STORMS[currentStormIndex];
 }
 
-// Simulate progression through storm
-function getSimulatedStormPosition(storm) {
+// Determine which timeframe is currently active
+function getActiveTimeframe(storm) {
+  if (!storm || !storm.timeframes) return null;
+  
   const now = new Date();
-  const dayOfWeek = now.getUTCDay();
-  const hourOfDay = now.getUTCHours();
-  const weekProgress = (dayOfWeek + hourOfDay / 24) / 7;
+  const gameStart = new Date(storm.gameStart);
   
-  const trackIndex = Math.floor(weekProgress * storm.track.length);
-  const safeIndex = Math.min(trackIndex, storm.track.length - 1);
-  const currentPosition = storm.track[safeIndex];
+  // Calculate hours since game start
+  const hoursSinceStart = (now - gameStart) / (1000 * 60 * 60);
   
-  return {
-    current: currentPosition,
-    historical: storm.track.slice(0, safeIndex + 1),
-    forecast: storm.track.slice(safeIndex),
-    weekProgress: (weekProgress * 100).toFixed(1),
-    daysRemaining: 7 - dayOfWeek
-  };
+  // Determine active timeframe based on time
+  if (hoursSinceStart < 0) {
+    return null; // Game hasn't started yet
+  } else if (hoursSinceStart < 6) {
+    return '0600'; // 0000-0559: predict 0600
+  } else if (hoursSinceStart < 12) {
+    return '1200'; // 0600-1159: predict 1200
+  } else if (hoursSinceStart < 18) {
+    return '1800'; // 1200-1759: predict 1800
+  } else if (hoursSinceStart < 24) {
+    return '0000'; // 1800-2359: predict next 0000
+  } else {
+    return null; // Game ended
+  }
 }
 
-// Weekly historical storm endpoint
-app.get('/api/storms/weekly', (req, res) => {
+// Get game state
+app.get('/api/game/state', (req, res) => {
   try {
-    const currentStorm = getCurrentWeekStorm();
-    const simulatedData = getSimulatedStormPosition(currentStorm);
+    const currentStorm = getCurrentStorm();
+    
+    if (!currentStorm) {
+      return res.status(404).json({ error: 'No active storm' });
+    }
+    
+    const activeTimeframe = getActiveTimeframe(currentStorm);
+    const now = new Date();
+    const gameStart = new Date(currentStorm.gameStart);
+    const hoursSinceStart = (now - gameStart) / (1000 * 60 * 60);
+    
+    // Calculate time until next timeframe unlocks
+    let nextUnlockHours = 0;
+    if (hoursSinceStart < 6) {
+      nextUnlockHours = 6 - hoursSinceStart;
+    } else if (hoursSinceStart < 12) {
+      nextUnlockHours = 12 - hoursSinceStart;
+    } else if (hoursSinceStart < 18) {
+      nextUnlockHours = 18 - hoursSinceStart;
+    } else if (hoursSinceStart < 24) {
+      nextUnlockHours = 24 - hoursSinceStart;
+    }
     
     res.json({
-      mode: 'historical-replay',
       storm: {
         id: currentStorm.id,
         name: currentStorm.name,
         year: currentStorm.year,
-        currentLat: simulatedData.current.lat,
-        currentLon: simulatedData.current.lon,
-        currentWindSpeed: simulatedData.current.windSpeed,
-        currentPressure: simulatedData.current.pressure,
-        currentCategory: simulatedData.current.category,
-        status: 'active'
+        gameStart: currentStorm.gameStart,
+        gameEnd: currentStorm.gameEnd
       },
-      historicalTrack: simulatedData.historical,
-      forecastTrack: simulatedData.forecast,
-      metadata: {
-        weekProgress: simulatedData.weekProgress,
-        daysRemaining: simulatedData.daysRemaining,
-        nextStormChange: 'Next Monday 00:00 UTC',
-        actualLandfall: currentStorm.actualLandfall
-      }
+      timeframes: currentStorm.timeframes,
+      activeTimeframe: activeTimeframe,
+      hoursSinceStart: hoursSinceStart.toFixed(1),
+      nextUnlockHours: nextUnlockHours.toFixed(1)
     });
   } catch (error) {
-    console.error('Error in weekly storm:', error);
-    res.status(500).json({ error: 'Failed to get weekly storm', message: error.message });
+    console.error('Error getting game state:', error);
+    res.status(500).json({ error: 'Failed to get game state' });
   }
 });
 
-// NHC API Proxy
-app.get('/api/storms/current', async (req, res) => {
-    try {
-        const response = await fetch('https://www.nhc.noaa.gov/CurrentStorms.json');
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch from NHC');
-        }
-        
-        const data = await response.json();
-        
-        if (data.activeStorms && data.activeStorms.length > 0) {
-            activeStorms = data.activeStorms;
-        }
-        
-        res.json(data);
-    } catch (error) {
-        console.error('Error fetching NHC data:', error);
-        res.json({ 
-            error: 'No active storms at this time',
-            demo: true,
-            activeStorms: [],
-            message: 'Currently no active tropical storms or hurricanes. Check back during hurricane season!'
-        });
-    }
-});
-
-// Get specific storm details
-app.get('/api/storms/:stormId', async (req, res) => {
-    try {
-        const { stormId } = req.params;
-        const storm = activeStorms.find(s => s.id === stormId);
-        
-        if (!storm) {
-            return res.status(404).json({ error: 'Storm not found' });
-        }
-        
-        res.json(storm);
-    } catch (error) {
-        console.error('Error fetching storm details:', error);
-        res.status(500).json({ error: 'Failed to fetch storm details' });
-    }
-});
-
-// Submit a prediction
+// Submit prediction for a timeframe
 app.post('/api/predictions', async (req, res) => {
-    try {
-        const {
-            username,
-            stormId,
-            predictions
-        } = req.body;
-        
-        if (!username || !stormId || !predictions || predictions.length !== 4) {
-            return res.status(400).json({ error: 'Missing required fields or invalid prediction format' });
-        }
-        
-        const predictionId = Date.now().toString();
-        
-        // Insert into database with predictions as JSONB
-        const result = await pool.query(
-            `INSERT INTO predictions 
-            (prediction_id, username, storm_id, prediction_points)
-            VALUES ($1, $2, $3, $4)
-            RETURNING *`,
-            [predictionId, username, stormId, JSON.stringify(predictions)]
-        );
-        
-        console.log(`💾 Saved 4-point prediction for ${username} on storm ${stormId}`);
-        
-        res.status(201).json({
-            success: true,
-            prediction: result.rows[0],
-            message: 'Prediction submitted successfully'
-        });
-    } catch (error) {
-        console.error('Error submitting prediction:', error);
-        res.status(500).json({ error: 'Failed to submit prediction' });
+  try {
+    const {
+      username,
+      stormId,
+      timeframe,
+      lat,
+      lon,
+      windSpeed,
+      pressure
+    } = req.body;
+    
+    if (!username || !stormId || !timeframe || !lat || !lon || !windSpeed || !pressure) {
+      return res.status(400).json({ error: 'Missing required fields' });
     }
+    
+    // Verify this timeframe is currently active
+    const currentStorm = getCurrentStorm();
+    if (!currentStorm || currentStorm.id !== stormId) {
+      return res.status(400).json({ error: 'Storm not active' });
+    }
+    
+    const activeTimeframe = getActiveTimeframe(currentStorm);
+    if (activeTimeframe !== timeframe) {
+      return res.status(400).json({ error: `Timeframe ${timeframe} is not currently active. Active: ${activeTimeframe}` });
+    }
+    
+    const predictionId = `${username}-${stormId}-${timeframe}-${Date.now()}`;
+    
+    // Insert prediction
+    const result = await pool.query(
+      `INSERT INTO predictions 
+      (prediction_id, username, storm_id, timeframe, predicted_lat, predicted_lon, predicted_wind_speed, predicted_pressure)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *`,
+      [predictionId, username, stormId, timeframe, lat, lon, windSpeed, pressure]
+    );
+    
+    console.log(`💾 Saved prediction: ${username} - ${stormId} - ${timeframe}`);
+    
+    res.status(201).json({
+      success: true,
+      prediction: result.rows[0],
+      message: 'Prediction submitted successfully'
+    });
+  } catch (error) {
+    if (error.code === '23505') { // Unique constraint violation
+      return res.status(400).json({ error: 'You have already submitted a prediction for this timeframe' });
+    }
+    console.error('Error submitting prediction:', error);
+    res.status(500).json({ error: 'Failed to submit prediction' });
+  }
 });
 
-// Get leaderboard for a specific storm
-app.get('/api/leaderboard/:stormId', async (req, res) => {
-    try {
-        const { stormId } = req.params;
-        
-        const result = await pool.query(
-            `SELECT 
-                prediction_id as id,
-                username,
-                storm_id as "stormId",
-                prediction_points as "predictionPoints",
-                submitted_at as "submittedAt",
-                score,
-                accuracy
-            FROM predictions
-            WHERE storm_id = $1
-            ORDER BY score DESC NULLS LAST, submitted_at ASC
-            LIMIT 100`,
-            [stormId]
-        );
-        
-        res.json({
-            stormId,
-            predictions: result.rows,
-            totalPredictions: result.rows.length
-        });
-    } catch (error) {
-        console.error('Error fetching leaderboard:', error);
-        res.status(500).json({ error: 'Failed to fetch leaderboard' });
-    }
-});
-
-// Get all predictions for a user
+// Get user's predictions for current storm
 app.get('/api/predictions/user/:username', async (req, res) => {
-    try {
-        const { username } = req.params;
-        
-        const result = await pool.query(
-            `SELECT 
-                prediction_id as id,
-                username,
-                storm_id as "stormId",
-                prediction_points as "predictionPoints",
-                submitted_at as "submittedAt",
-                score,
-                accuracy
-            FROM predictions
-            WHERE LOWER(username) = LOWER($1)
-            ORDER BY submitted_at DESC`,
-            [username]
-        );
-        
-        res.json({
-            username,
-            predictions: result.rows,
-            totalPredictions: result.rows.length
-        });
-    } catch (error) {
-        console.error('Error fetching user predictions:', error);
-        res.status(500).json({ error: 'Failed to fetch predictions' });
+  try {
+    const { username } = req.params;
+    const currentStorm = getCurrentStorm();
+    
+    if (!currentStorm) {
+      return res.json({ predictions: [] });
     }
+    
+    const result = await pool.query(
+      `SELECT * FROM predictions
+      WHERE username = $1 AND storm_id = $2
+      ORDER BY timeframe ASC`,
+      [username, currentStorm.id]
+    );
+    
+    res.json({
+      username,
+      stormId: currentStorm.id,
+      predictions: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching user predictions:', error);
+    res.status(500).json({ error: 'Failed to fetch predictions' });
+  }
+});
+
+// Get leaderboard (cumulative scores)
+app.get('/api/leaderboard/:stormId', async (req, res) => {
+  try {
+    const { stormId } = req.params;
+    
+    const result = await pool.query(
+      `SELECT 
+        username,
+        SUM(COALESCE(score, 0)) as total_score,
+        COUNT(*) as predictions_count
+      FROM predictions
+      WHERE storm_id = $1
+      GROUP BY username
+      ORDER BY total_score DESC
+      LIMIT 100`,
+      [stormId]
+    );
+    
+    res.json({
+      stormId,
+      leaderboard: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching leaderboard:', error);
+    res.status(500).json({ error: 'Failed to fetch leaderboard' });
+  }
 });
 
 // Health check
 app.get('/api/health', async (req, res) => {
-    try {
-        // Test database connection
-        const result = await pool.query('SELECT COUNT(*) FROM predictions');
-        const predictionsCount = parseInt(result.rows[0].count);
-        
-        res.json({ 
-            status: 'healthy', 
-            timestamp: new Date().toISOString(),
-            predictionsCount: predictionsCount,
-            activeStormsCount: activeStorms.length,
-            database: 'connected'
-        });
-    } catch (error) {
-        res.json({
-            status: 'degraded',
-            timestamp: new Date().toISOString(),
-            database: 'error',
-            error: error.message
-        });
-    }
+  try {
+    const result = await pool.query('SELECT COUNT(*) FROM predictions');
+    const predictionsCount = parseInt(result.rows[0].count);
+    
+    res.json({ 
+      status: 'healthy', 
+      timestamp: new Date().toISOString(),
+      predictionsCount: predictionsCount,
+      stormsLoaded: HISTORICAL_STORMS.length,
+      database: 'connected'
+    });
+  } catch (error) {
+    res.json({
+      status: 'degraded',
+      timestamp: new Date().toISOString(),
+      database: 'error',
+      error: error.message
+    });
+  }
 });
 
 // Start server
 app.listen(PORT, () => {
-    console.log(`🌀 Hurricane Prediction Game API running on port ${PORT}`);
-    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🗄️  Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
+  console.log(`🌀 Hurricane Prediction Game API running on port ${PORT}`);
+  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🗄️  Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
 });
