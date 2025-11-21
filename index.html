@@ -130,7 +130,7 @@
 
             // Update map with storm track
             useEffect(() => {
-                if (!map || !gameState) return;
+                if (!map || !gameState || !gameState.timeframes) return;
 
                 // Clear existing layers
                 map.eachLayer((layer) => {
@@ -170,7 +170,7 @@
                 const releasedPoints = releasedTimeframes.map(tf => [tf.lat, tf.lon]);
                 if (releasedPoints.length > 1) {
                     L.polyline(releasedPoints, { color: '#4B5563', weight: 4, opacity: 0.8 })
-                        .addTo(map).bindPopup('Actual Storm Track');
+                        .addTo(map);
                 }
 
                 // Plot each released timeframe
@@ -187,7 +187,7 @@
                 });
 
                 // Draw user's predictions (green) with connecting line
-                if (userPredictions.length > 0) {
+                if (userPredictions && userPredictions.length > 0) {
                     const predictionPoints = userPredictions.map(pred => [pred.predicted_lat, pred.predicted_lon]);
                     
                     // Draw line connecting predictions
@@ -197,7 +197,7 @@
                             weight: 4, 
                             opacity: 0.9, 
                             dashArray: '10, 10' 
-                        }).addTo(map).bindPopup('Your Prediction Track');
+                        }).addTo(map);
                     }
                     
                     // Draw individual prediction points
@@ -213,13 +213,22 @@
                     });
                 }
 
-                // Fit map to show all points
+                // Fit map to show all points (only once, with valid points)
                 const allMapPoints = [...releasedPoints];
-                if (userPredictions.length > 0) {
-                    userPredictions.forEach(pred => allMapPoints.push([pred.predicted_lat, pred.predicted_lon]));
+                if (userPredictions && userPredictions.length > 0) {
+                    userPredictions.forEach(pred => {
+                        if (pred.predicted_lat && pred.predicted_lon) {
+                            allMapPoints.push([pred.predicted_lat, pred.predicted_lon]);
+                        }
+                    });
                 }
+                
                 if (allMapPoints.length > 0) {
-                    map.fitBounds(allMapPoints, { padding: [50, 50] });
+                    try {
+                        map.fitBounds(allMapPoints, { padding: [50, 50], maxZoom: 8 });
+                    } catch (error) {
+                        console.log('Could not fit bounds:', error);
+                    }
                 }
             }, [map, gameState, userPredictions]);
 
