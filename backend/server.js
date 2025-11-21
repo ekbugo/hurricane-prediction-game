@@ -19,7 +19,7 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// Load historical storms from JSON file
+// Load historical storms from JSON file.
 let HISTORICAL_STORMS = [];
 
 function loadStorms() {
