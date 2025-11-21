@@ -78,6 +78,128 @@ async function initializeDatabase() {
 
 initializeDatabase();
 
+// Calculate great-circle distance between two points (Haversine formula)
+// Returns distance in nautical miles
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 3440.065; // Earth's radius in nautical miles
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// Calculate Track Score (0-1000 pts based on distance error)
+function calculateTrackScore(distanceErrorNM) {
+  // Exponential decay: heavily penalize distance errors
+  // 0 NM = 1000 pts, 50 NM = ~600 pts, 100 NM = ~368 pts, 200 NM = ~135 pts
+  const score = 1000 * Math.exp(-0.01 * distanceErrorNM);
+  return Math.round(Math.max(0, score));
+}
+
+// Calculate Intensity Score (0-1000 pts based on wind + pressure errors)
+function calculateIntensityScore(windError, pressureError) {
+  // Weight: winds are harder to predict than pressure
+  // Wind contributes 60%, pressure 40%
+  const windScore = 600 * Math.exp(-0.02 * Math.abs(windError));
+  const pressureScore = 400 * Math.exp(-0.05 * Math.abs(pressureError));
+  const totalScore = windScore + pressureScore;
+  return Math.round(Math.max(0, totalScore));
+}
+
+// Score all predictions for a specific storm and timeframe
+async function scorePredictions(stormId, timeframe, actualData) {
+  try {
+    // Get all predictions for this storm/timeframe that haven't been scored
+    const predictions = await pool.query(
+      `SELECT * FROM predictions 
+       WHERE storm_id = $1 AND timeframe = $2 AND score IS NULL`,
+      [stormId, timeframe]
+    );
+
+    console.log(`📊 Scoring ${predictions.rows.length} predictions for ${stormId} ${timeframe}`);
+
+    for (const pred of predictions.rows) {
+      // Calculate distance error
+      const distanceError = calculateDistance(
+        pred.predicted_lat,
+        pred.predicted_lon,
+        actualData.lat,
+        actualData.lon
+      );
+
+      // Calculate wind and pressure errors
+      const windError = Math.abs(pred.predicted_wind_speed - actualData.windSpeed);
+      const pressureError = Math.abs(pred.predicted_pressure - actualData.pressure);
+
+      // Calculate scores
+      const trackScore = calculateTrackScore(distanceError);
+      const intensityScore = calculateIntensityScore(windError, pressureError);
+      const totalScore = trackScore + intensityScore;
+
+      // Update prediction with scores and actual data
+      await pool.query(
+        `UPDATE predictions 
+         SET score = $1, 
+             actual_lat = $2, 
+             actual_lon = $3,
+             actual_wind_speed = $4,
+             actual_pressure = $5
+         WHERE id = $6`,
+        [totalScore, actualData.lat, actualData.lon, actualData.windSpeed, actualData.pressure, pred.id]
+      );
+
+      console.log(`  ✓ ${pred.username}: ${totalScore} pts (Track: ${trackScore}, Intensity: ${intensityScore}, Distance: ${distanceError.toFixed(1)} NM)`);
+    }
+
+    console.log(`✅ Scoring complete for ${stormId} ${timeframe}`);
+  } catch (error) {
+    console.error('Error scoring predictions:', error);
+  }
+}
+
+// Automatic scoring when timeframe passes
+async function checkAndScore() {
+  try {
+    const currentStorm = getCurrentStorm();
+    if (!currentStorm) return;
+
+    const now = new Date();
+    const gameStart = new Date(currentStorm.gameStart);
+    const hoursSinceStart = (now - gameStart) / (1000 * 60 * 60);
+
+    // Check each timeframe and score if it just passed
+    const timeframesToScore = [];
+    
+    if (hoursSinceStart >= 6 && hoursSinceStart < 7) {
+      timeframesToScore.push({ tf: '0600', data: currentStorm.timeframes.find(t => t.timeframe === '0600') });
+    }
+    if (hoursSinceStart >= 12 && hoursSinceStart < 13) {
+      timeframesToScore.push({ tf: '1200', data: currentStorm.timeframes.find(t => t.timeframe === '1200') });
+    }
+    if (hoursSinceStart >= 18 && hoursSinceStart < 19) {
+      timeframesToScore.push({ tf: '1800', data: currentStorm.timeframes.find(t => t.timeframe === '1800') });
+    }
+    if (hoursSinceStart >= 24 && hoursSinceStart < 25) {
+      timeframesToScore.push({ tf: '0000', data: currentStorm.timeframes.find(t => t.timeframe === '0000' && t.type === 'prediction') });
+    }
+
+    for (const { tf, data } of timeframesToScore) {
+      if (data) {
+        await scorePredictions(currentStorm.id, tf, data);
+      }
+    }
+  } catch (error) {
+    console.error('Error in automatic scoring:', error);
+  }
+}
+
+// Run scoring check every minute
+setInterval(checkAndScore, 60000);
+
 // Get current active storm (24-hour rotation)
 function getCurrentStorm() {
   if (HISTORICAL_STORMS.length === 0) return null;
@@ -292,6 +414,33 @@ app.get('/api/health', async (req, res) => {
       database: 'error',
       error: error.message
     });
+  }
+});
+
+// Manual scoring endpoint (for admin/testing)
+app.post('/api/admin/score/:stormId/:timeframe', async (req, res) => {
+  try {
+    const { stormId, timeframe } = req.params;
+    
+    const storm = HISTORICAL_STORMS.find(s => s.id === stormId);
+    if (!storm) {
+      return res.status(404).json({ error: 'Storm not found' });
+    }
+    
+    const actualData = storm.timeframes.find(tf => tf.timeframe === timeframe && tf.type === 'prediction');
+    if (!actualData) {
+      return res.status(404).json({ error: 'Timeframe not found' });
+    }
+    
+    await scorePredictions(stormId, timeframe, actualData);
+    
+    res.json({
+      success: true,
+      message: `Scored all predictions for ${stormId} ${timeframe}`
+    });
+  } catch (error) {
+    console.error('Error in manual scoring:', error);
+    res.status(500).json({ error: 'Failed to score predictions' });
   }
 });
 
