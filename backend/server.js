@@ -61,11 +61,7 @@ async function initializeDatabase() {
         prediction_id VARCHAR(50) UNIQUE NOT NULL,
         username VARCHAR(100) NOT NULL,
         storm_id VARCHAR(50) NOT NULL,
-        landfall_lat DECIMAL(10, 6),
-        landfall_lon DECIMAL(10, 6),
-        landfall_time TIMESTAMP,
-        peak_category INTEGER,
-        peak_wind_speed INTEGER,
+        prediction_points JSONB NOT NULL,
         submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         score INTEGER,
         accuracy DECIMAL(5, 2),
@@ -194,29 +190,25 @@ app.post('/api/predictions', async (req, res) => {
         const {
             username,
             stormId,
-            landfallLat,
-            landfallLon,
-            landfallTime,
-            peakCategory,
-            peakWindSpeed
+            predictions
         } = req.body;
         
-        if (!username || !stormId) {
-            return res.status(400).json({ error: 'Missing required fields' });
+        if (!username || !stormId || !predictions || predictions.length !== 4) {
+            return res.status(400).json({ error: 'Missing required fields or invalid prediction format' });
         }
         
         const predictionId = Date.now().toString();
         
-        // Insert into database
+        // Insert into database with predictions as JSONB
         const result = await pool.query(
             `INSERT INTO predictions 
-            (prediction_id, username, storm_id, landfall_lat, landfall_lon, landfall_time, peak_category, peak_wind_speed)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            (prediction_id, username, storm_id, prediction_points)
+            VALUES ($1, $2, $3, $4)
             RETURNING *`,
-            [predictionId, username, stormId, landfallLat, landfallLon, landfallTime, peakCategory, peakWindSpeed]
+            [predictionId, username, stormId, JSON.stringify(predictions)]
         );
         
-        console.log(`💾 Saved prediction for ${username} on storm ${stormId}`);
+        console.log(`💾 Saved 4-point prediction for ${username} on storm ${stormId}`);
         
         res.status(201).json({
             success: true,
@@ -239,11 +231,7 @@ app.get('/api/leaderboard/:stormId', async (req, res) => {
                 prediction_id as id,
                 username,
                 storm_id as "stormId",
-                landfall_lat as "landfallLat",
-                landfall_lon as "landfallLon",
-                landfall_time as "landfallTime",
-                peak_category as "peakCategory",
-                peak_wind_speed as "peakWindSpeed",
+                prediction_points as "predictionPoints",
                 submitted_at as "submittedAt",
                 score,
                 accuracy
@@ -275,11 +263,7 @@ app.get('/api/predictions/user/:username', async (req, res) => {
                 prediction_id as id,
                 username,
                 storm_id as "stormId",
-                landfall_lat as "landfallLat",
-                landfall_lon as "landfallLon",
-                landfall_time as "landfallTime",
-                peak_category as "peakCategory",
-                peak_wind_speed as "peakWindSpeed",
+                prediction_points as "predictionPoints",
                 submitted_at as "submittedAt",
                 score,
                 accuracy
