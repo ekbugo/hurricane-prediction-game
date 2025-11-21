@@ -1,4 +1,3 @@
-//test coming back here
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -86,13 +85,20 @@
             const [predictions, setPredictions] = useState([]);
             const [userPrediction, setUserPrediction] = useState({
                 username: '',
-                landfallLat: '',
-                landfallLon: '',
-                maxWindSpeed: '',
-                minPressure: '',
-                peakCategory: '',
-                landfallTime: ''
+                points: [
+                    { timeframe: '12h', lat: '', lon: '' },
+                    { timeframe: '24h', lat: '', lon: '' },
+                    { timeframe: '36h', lat: '', lon: '' },
+                    { timeframe: '48h', lat: '', lon: '' }
+                ]
             });
+            const [expandedSections, setExpandedSections] = useState({
+                '12h': true,
+                '24h': false,
+                '36h': false,
+                '48h': false
+            });
+            const [userPredictionLine, setUserPredictionLine] = useState(null);
             const [view, setView] = useState('predict');
             const [submitted, setSubmitted] = useState(false);
             const [map, setMap] = useState(null);
@@ -246,6 +252,34 @@
                     });
                 }
 
+                // Draw user's prediction track (if any points entered)
+                const validPoints = userPrediction.points
+                    .filter(p => p.lat && p.lon && !isNaN(parseFloat(p.lat)) && !isNaN(parseFloat(p.lon)))
+                    .map(p => [parseFloat(p.lat), parseFloat(p.lon)]);
+
+                if (validPoints.length > 0) {
+                    // Draw prediction line
+                    if (validPoints.length > 1) {
+                        L.polyline(validPoints, { 
+                            color: '#10B981', 
+                            weight: 4, 
+                            opacity: 0.9, 
+                            dashArray: '15, 10' 
+                        }).addTo(map).bindPopup('Your Prediction');
+                    }
+
+                    // Draw prediction points
+                    validPoints.forEach((point, index) => {
+                        const icon = L.divIcon({
+                            className: 'custom-icon',
+                            html: `<div style="background-color: #10B981; width: 18px; height: 18px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);"></div>`,
+                            iconSize: [18, 18]
+                        });
+                        L.marker(point, { icon }).addTo(map)
+                            .bindPopup(`Your ${userPrediction.points[index].timeframe} Prediction`);
+                    });
+                }
+
                 // Current position
                 const currentIcon = L.divIcon({
                     className: 'custom-icon pulse',
@@ -261,12 +295,31 @@
                 if (allPoints.length > 0) {
                     map.fitBounds(allPoints, { padding: [50, 50] });
                 }
-            }, [map, activeStorm, historicalTrack, forecastTrack]);
+            }, [map, activeStorm, historicalTrack, forecastTrack, userPrediction]);
 
-            const handleInputChange = (e) => {
+            const handlePointChange = (index, field, value) => {
+                const newPoints = [...userPrediction.points];
+                newPoints[index] = {
+                    ...newPoints[index],
+                    [field]: value
+                };
                 setUserPrediction({
                     ...userPrediction,
-                    [e.target.name]: e.target.value
+                    points: newPoints
+                });
+            };
+
+            const handleUsernameChange = (e) => {
+                setUserPrediction({
+                    ...userPrediction,
+                    username: e.target.value
+                });
+            };
+
+            const toggleSection = (timeframe) => {
+                setExpandedSections({
+                    ...expandedSections,
+                    [timeframe]: !expandedSections[timeframe]
                 });
             };
 
@@ -275,6 +328,13 @@
                 
                 if (!userPrediction.username) {
                     alert('Please enter your username');
+                    return;
+                }
+
+                // Validate all 4 points are filled
+                const allPointsFilled = userPrediction.points.every(p => p.lat && p.lon);
+                if (!allPointsFilled) {
+                    alert('Please enter coordinates for all 4 timeframes (12h, 24h, 36h, 48h)');
                     return;
                 }
 
@@ -288,11 +348,11 @@
                         body: JSON.stringify({
                             username: userPrediction.username,
                             stormId: activeStorm.id,
-                            landfallLat: parseFloat(userPrediction.landfallLat) || activeStorm.currentLat,
-                            landfallLon: parseFloat(userPrediction.landfallLon) || activeStorm.currentLon,
-                            landfallTime: userPrediction.landfallTime || new Date().toISOString(),
-                            peakCategory: parseInt(userPrediction.peakCategory) || activeStorm.currentCategory,
-                            peakWindSpeed: parseInt(userPrediction.peakWindSpeed) || activeStorm.currentWindSpeed
+                            predictions: userPrediction.points.map(p => ({
+                                timeframe: p.timeframe,
+                                lat: parseFloat(p.lat),
+                                lon: parseFloat(p.lon)
+                            }))
                         })
                     });
 
@@ -451,113 +511,91 @@
                                 </div>
                             ) : (
                                 <form onSubmit={handleSubmit} className="space-y-6">
+                                    {/* Username Field */}
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-2">Username *</label>
                                         <input
                                             type="text"
-                                            name="username"
                                             value={userPrediction.username}
-                                            onChange={handleInputChange}
-                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            onChange={handleUsernameChange}
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                                             placeholder="Enter your username"
                                             required
                                         />
                                     </div>
 
-                                    <div className="grid md:grid-cols-2 gap-6">
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Landfall Latitude (°N) *</label>
-                                            <input
-                                                type="number"
-                                                step="0.1"
-                                                name="landfallLat"
-                                                value={userPrediction.landfallLat}
-                                                onChange={handleInputChange}
-                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                placeholder="e.g., 28.5"
-                                                required
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Landfall Longitude (°W) *</label>
-                                            <input
-                                                type="number"
-                                                step="0.1"
-                                                name="landfallLon"
-                                                value={userPrediction.landfallLon}
-                                                onChange={handleInputChange}
-                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                placeholder="e.g., -82.5"
-                                                required
-                                            />
-                                        </div>
+                                    {/* Prediction Instructions */}
+                                    <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded">
+                                        <p className="text-sm text-green-800">
+                                            <strong>📍 Enter predicted coordinates for 4 timeframes</strong><br/>
+                                            Your predictions will appear as green points on the map with a dashed line connecting them.
+                                        </p>
                                     </div>
 
-                                    <div className="grid md:grid-cols-2 gap-6">
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Maximum Wind Speed (mph) *</label>
-                                            <input
-                                                type="number"
-                                                name="maxWindSpeed"
-                                                value={userPrediction.maxWindSpeed}
-                                                onChange={handleInputChange}
-                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                placeholder="e.g., 130"
-                                                min="39"
-                                                max="200"
-                                                required
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Minimum Pressure (mb) *</label>
-                                            <input
-                                                type="number"
-                                                name="minPressure"
-                                                value={userPrediction.minPressure}
-                                                onChange={handleInputChange}
-                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                placeholder="e.g., 945"
-                                                min="850"
-                                                max="1013"
-                                                required
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid md:grid-cols-2 gap-6">
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Peak Category *</label>
-                                            <select
-                                                name="peakCategory"
-                                                value={userPrediction.peakCategory}
-                                                onChange={handleInputChange}
-                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                required
+                                    {/* Collapsible Prediction Points */}
+                                    {userPrediction.points.map((point, index) => (
+                                        <div key={point.timeframe} className="border border-gray-200 rounded-lg overflow-hidden">
+                                            {/* Header (always visible) */}
+                                            <div 
+                                                onClick={() => toggleSection(point.timeframe)}
+                                                className="bg-gray-50 px-4 py-3 cursor-pointer hover:bg-gray-100 transition-colors flex items-center justify-between"
                                             >
-                                                <option value="">Select category</option>
-                                                <option value="1">Category 1</option>
-                                                <option value="2">Category 2</option>
-                                                <option value="3">Category 3</option>
-                                                <option value="4">Category 4</option>
-                                                <option value="5">Category 5</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Expected Landfall Time *</label>
-                                            <input
-                                                type="datetime-local"
-                                                name="landfallTime"
-                                                value={userPrediction.landfallTime}
-                                                onChange={handleInputChange}
-                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                required
-                                            />
-                                        </div>
-                                    </div>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-2xl">{expandedSections[point.timeframe] ? '▼' : '▶'}</span>
+                                                    <h3 className="font-bold text-gray-800">{point.timeframe} Prediction</h3>
+                                                    {point.lat && point.lon && (
+                                                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">✓ Filled</span>
+                                                    )}
+                                                </div>
+                                            </div>
 
+                                            {/* Collapsible Content */}
+                                            {expandedSections[point.timeframe] && (
+                                                <div className="p-4 bg-white space-y-4">
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div>
+                                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                                Latitude (°N) *
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                step="0.1"
+                                                                value={point.lat}
+                                                                onChange={(e) => handlePointChange(index, 'lat', e.target.value)}
+                                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                                                placeholder="e.g., 26.5"
+                                                                required
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                                Longitude (°W) *
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                step="0.1"
+                                                                value={point.lon}
+                                                                onChange={(e) => handlePointChange(index, 'lon', e.target.value)}
+                                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                                                placeholder="e.g., -82.0"
+                                                                required
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    {point.lat && point.lon && (
+                                                        <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                                                            Preview: {parseFloat(point.lat).toFixed(1)}°N, {Math.abs(parseFloat(point.lon)).toFixed(1)}°W
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+
+                                    {/* Submit Button */}
                                     <button
                                         type="submit"
-                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg transition-all transform hover:scale-105 shadow-lg"
+                                        className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-lg transition-all transform hover:scale-105 shadow-lg"
                                     >
                                         🎯 Submit Prediction
                                     </button>
@@ -586,10 +624,14 @@
                                             <div className="flex-1">
                                                 <div className="font-bold text-lg">{pred.username}</div>
                                                 <div className="text-sm opacity-75">
-                                                    Predicted: Cat {pred.peakCategory || 'N/A'} • 
-                                                    {pred.peakWindSpeed ? `${pred.peakWindSpeed} mph` : 'N/A'} • 
-                                                    Landfall: {pred.landfallLat ? `${Number(pred.landfallLat).toFixed(1)}°N` : 'N/A'}, 
-                                                    {pred.landfallLon ? `${Math.abs(Number(pred.landfallLon)).toFixed(1)}°W` : 'N/A'}
+                                                    {pred.predictionPoints && pred.predictionPoints.length > 0 ? (
+                                                        <>
+                                                            4-Point Track: 
+                                                            {pred.predictionPoints[0] && ` ${Number(pred.predictionPoints[0].lat).toFixed(1)}°N`}
+                                                            {pred.predictionPoints[pred.predictionPoints.length - 1] && 
+                                                                ` → ${Number(pred.predictionPoints[pred.predictionPoints.length - 1].lat).toFixed(1)}°N`}
+                                                        </>
+                                                    ) : 'Track prediction submitted'}
                                                 </div>
                                             </div>
                                             <div className="text-right">
