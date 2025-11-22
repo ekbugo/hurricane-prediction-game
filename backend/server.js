@@ -40,11 +40,9 @@ loadStorms();
 // Initialize database table
 async function initializeDatabase() {
   try {
-    await pool.query(`DROP TABLE IF EXISTS predictions`);
-    console.log('✅ Old predictions table dropped');
-    
+    // Create table if it doesn't exist (but don't drop existing data)
     await pool.query(`
-      CREATE TABLE predictions (
+      CREATE TABLE IF NOT EXISTS predictions (
         id SERIAL PRIMARY KEY,
         prediction_id VARCHAR(50) UNIQUE NOT NULL,
         username VARCHAR(100) NOT NULL,
@@ -70,7 +68,7 @@ async function initializeDatabase() {
       CREATE INDEX IF NOT EXISTS idx_username_storm ON predictions(username, storm_id);
     `);
     
-    console.log('✅ New predictions table created');
+    console.log('✅ Database table ready (existing data preserved)');
   } catch (error) {
     console.error('⚠️ Error initializing database:', error.message);
   }
