@@ -67,7 +67,7 @@
 
             async function fetchGameState() {
                 try {
-                    const response = await fetch(`${API_BASE_URL}/storm/current`);
+                    const response = await fetch(`${API_BASE_URL}/game/state`);
                     const data = await response.json();
                     setGameState(data);
                     
