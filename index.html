@@ -332,11 +332,14 @@
                     {/* Header */}
                     <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
                         <div className="flex items-center justify-between">
-                            <div>
+                            <div className="flex-1">
                                 <h1 className="text-4xl font-bold text-gray-800">🌀 {gameState.storm.name}</h1>
                                 <p className="text-gray-600">24-Hour Prediction Challenge</p>
-                                <p className="text-sm text-gray-500 mt-1">
-                                    Current Time (UTC): {new Date().toUTCString()}
+                                <p className="text-sm text-gray-500 mt-2">
+                                    🕐 Current Time: {new Date().toLocaleString('en-US', { 
+                                        dateStyle: 'medium',
+                                        timeStyle: 'short'
+                                    })} (Your Local Time)
                                 </p>
                             </div>
                             <div className="flex gap-4">
