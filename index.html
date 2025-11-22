@@ -58,6 +58,13 @@
                 return () => clearInterval(interval);
             }, []);
 
+            // Fetch user predictions when username and gameState are both available
+            useEffect(() => {
+                if (username && gameState?.storm?.id) {
+                    fetchUserPredictions();
+                }
+            }, [username, gameState]);
+
             // Update current time every minute
             useEffect(() => {
                 const interval = setInterval(() => {
@@ -71,18 +78,16 @@
                     const response = await fetch(`${API_BASE_URL}/game/state`);
                     const data = await response.json();
                     setGameState(data);
-                    
-                    if (username) {
-                        fetchUserPredictions();
-                    }
                 } catch (error) {
                     console.error('Error fetching game state:', error);
                 }
             }
 
             async function fetchUserPredictions() {
+                if (!gameState?.storm?.id) return; // Don't fetch if storm ID not loaded yet
+                
                 try {
-                    const response = await fetch(`${API_BASE_URL}/predictions/${username}/${gameState?.storm?.id}`);
+                    const response = await fetch(`${API_BASE_URL}/predictions/${username}/${gameState.storm.id}`);
                     const data = await response.json();
                     
                     const submitted = {};
@@ -125,14 +130,23 @@
             useEffect(() => {
                 if (!mapRef.current || mapInstanceRef.current) return;
 
-                const map = L.map(mapRef.current).setView([25.0, -80.0], 4);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap contributors'
-                }).addTo(map);
+                // Wait a bit to ensure DOM and Leaflet are fully loaded
+                const initMap = setTimeout(() => {
+                    try {
+                        const map = L.map(mapRef.current).setView([25.0, -80.0], 4);
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            attribution: '© OpenStreetMap contributors'
+                        }).addTo(map);
 
-                mapInstanceRef.current = map;
+                        mapInstanceRef.current = map;
+                        console.log('✅ Map initialized successfully');
+                    } catch (error) {
+                        console.error('❌ Map initialization error:', error);
+                    }
+                }, 100);
 
                 return () => {
+                    clearTimeout(initMap);
                     if (mapInstanceRef.current) {
                         mapInstanceRef.current.remove();
                         mapInstanceRef.current = null;
@@ -142,8 +156,15 @@
 
             // Update map with storm data
             useEffect(() => {
-                if (!mapInstanceRef.current || !gameState) return;
+                if (!mapInstanceRef.current || !gameState) {
+                    console.log('⏳ Waiting for map or gameState...', { 
+                        hasMap: !!mapInstanceRef.current, 
+                        hasGameState: !!gameState 
+                    });
+                    return;
+                }
 
+                console.log('🗺️ Updating map with storm data...');
                 const map = mapInstanceRef.current;
                 
                 // Clear existing layers except base tile layer
@@ -321,12 +342,6 @@
                 if (trimmedUsername.length > 0) {
                     localStorage.setItem('hurricaneUsername', trimmedUsername);
                     setIsUsernameConfirmed(true);
-                    // Force a re-render before fetching predictions
-                    setTimeout(() => {
-                        if (gameState) {
-                            fetchUserPredictions();
-                        }
-                    }, 100);
                 }
             }
 
