@@ -364,7 +364,7 @@
 
                     {/* Main Content */}
                     {view === 'predict' ? (
-                        <div className="bg-white rounded-lg shadow-lg p-6">
+                        <div key="predict-view" className="bg-white rounded-lg shadow-lg p-6">
                             <h2 className="text-2xl font-bold text-gray-800 mb-6">Submit Your Prediction</h2>
                             
                             {/* Username */}
@@ -553,7 +553,7 @@
                             </div>
                         </div>
                     ) : (
-                        <div className="bg-white rounded-lg shadow-lg p-6">
+                        <div key="leaderboard-view" className="bg-white rounded-lg shadow-lg p-6">
                             <h2 className="text-2xl font-bold text-gray-800 mb-6">🏆 Leaderboard - {gameState.storm.name}</h2>
                             
                             {/* Participants List (always show if anyone has submitted) */}
