@@ -42,6 +42,7 @@
         function HurricaneGameApp() {
             const [gameState, setGameState] = useState(null);
             const [username, setUsername] = useState(localStorage.getItem('hurricaneUsername') || '');
+            const [isUsernameConfirmed, setIsUsernameConfirmed] = useState(!!localStorage.getItem('hurricaneUsername'));
             const [view, setView] = useState('predict');
             const [leaderboard, setLeaderboard] = useState([]);
             const [predictions, setPredictions] = useState({});
@@ -316,9 +317,16 @@
 
             function handleUsernameSubmit(e) {
                 e.preventDefault();
-                if (username.trim()) {
-                    localStorage.setItem('hurricaneUsername', username);
-                    fetchUserPredictions();
+                const trimmedUsername = username.trim();
+                if (trimmedUsername.length > 0) {
+                    localStorage.setItem('hurricaneUsername', trimmedUsername);
+                    setIsUsernameConfirmed(true);
+                    // Force a re-render before fetching predictions
+                    setTimeout(() => {
+                        if (gameState) {
+                            fetchUserPredictions();
+                        }
+                    }, 100);
                 }
             }
 
@@ -376,7 +384,7 @@
                         </div>
 
                         {/* Username Input */}
-                        {!username && (
+                        {!isUsernameConfirmed && (
                             <form onSubmit={handleUsernameSubmit} className="mt-4">
                                 <div className="flex gap-2">
                                     <input
@@ -397,7 +405,7 @@
                             </form>
                         )}
 
-                        {username && (
+                        {isUsernameConfirmed && (
                             <div className="mt-4 flex items-center justify-between">
                                 <p className="text-lg">
                                     <span className="font-semibold">Player:</span> <span className="text-blue-600">{username}</span>
@@ -405,6 +413,7 @@
                                 <button
                                     onClick={() => {
                                         setUsername('');
+                                        setIsUsernameConfirmed(false);
                                         localStorage.removeItem('hurricaneUsername');
                                         setPredictions({});
                                         setSubmittedTimeframes({});
@@ -419,7 +428,7 @@
 
                     {/* Main Content */}
                     {view === 'predict' ? (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="space-y-6">
                             {/* Map */}
                             <div className="bg-white rounded-lg shadow-lg p-6">
                                 <h2 className="text-2xl font-bold text-gray-800 mb-4">Storm Track</h2>
@@ -435,7 +444,7 @@
                             <div className="bg-white rounded-lg shadow-lg p-6">
                                 <h2 className="text-2xl font-bold text-gray-800 mb-4">Make Your Predictions</h2>
                                 
-                                {!username ? (
+                                {!isUsernameConfirmed ? (
                                     <div className="text-center py-12">
                                         <p className="text-lg text-gray-600">Please enter a username to start predicting</p>
                                     </div>
