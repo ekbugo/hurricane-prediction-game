@@ -5,12 +5,12 @@
       "name": "Hurricane Ian",
       "year": 2022,
       "description": "Category 4 hurricane approaching Southwest Florida",
-      "gameStart": "2025-11-22T00:00:00.000Z",
-      "gameEnd": "2025-11-23T00:00:00.000Z",
+      "gameStart": "2025-11-22T06:00:00.000Z",
+      "gameEnd": "2025-11-23T06:00:00.000Z",
       "timeframes": [
         {
           "timeframe": "0000",
-          "time": "2025-11-22T00:00:00.000Z",
+          "time": "2025-11-22T06:00:00.000Z",
           "type": "base",
           "lat": 19.5,
           "lon": -83.0,
@@ -20,7 +20,7 @@
         },
         {
           "timeframe": "0600",
-          "time": "2025-11-22T06:00:00.000Z",
+          "time": "2025-11-22T12:00:00.000Z",
           "type": "prediction",
           "lat": 20.2,
           "lon": -83.2,
@@ -30,7 +30,7 @@
         },
         {
           "timeframe": "1200",
-          "time": "2025-11-22T12:00:00.000Z",
+          "time": "2025-11-22T18:00:00.000Z",
           "type": "prediction",
           "lat": 20.8,
           "lon": -83.5,
@@ -40,7 +40,7 @@
         },
         {
           "timeframe": "1800",
-          "time": "2025-11-22T18:00:00.000Z",
+          "time": "2025-11-23T00:00:00.000Z",
           "type": "prediction",
           "lat": 22.5,
           "lon": -83.0,
@@ -50,7 +50,7 @@
         },
         {
           "timeframe": "0000",
-          "time": "2025-11-23T00:00:00.000Z",
+          "time": "2025-11-23T06:00:00.000Z",
           "type": "prediction",
           "lat": 24.0,
           "lon": -82.8,
