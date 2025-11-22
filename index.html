@@ -82,7 +82,7 @@
 
             async function fetchUserPredictions() {
                 try {
-                    const response = await fetch(`${API_BASE_URL}/predictions/${username}/${gameState?.id}`);
+                    const response = await fetch(`${API_BASE_URL}/predictions/${username}/${gameState?.storm?.id}`);
                     const data = await response.json();
                     
                     const submitted = {};
@@ -107,7 +107,7 @@
 
             async function fetchLeaderboard() {
                 try {
-                    const response = await fetch(`${API_BASE_URL}/leaderboard/${gameState?.id}`);
+                    const response = await fetch(`${API_BASE_URL}/leaderboard/${gameState?.storm?.id}`);
                     const data = await response.json();
                     setLeaderboard(data.leaderboard);
                 } catch (error) {
@@ -292,7 +292,7 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             username,
-                            stormId: gameState.id,
+                            stormId: gameState.storm.id,
                             timeframe,
                             lat: parseFloat(pred.lat),
                             lon: parseFloat(pred.lon),
@@ -353,7 +353,7 @@
                                     🌀 Hurricane Prediction Challenge
                                 </h1>
                                 <p className="text-lg text-gray-600">
-                                    {gameState.name} • {gameState.year}
+                                    {gameState.storm.name} • {gameState.storm.year}
                                 </p>
                                 <p className="text-sm text-gray-500 mt-1">
                                     Current Time: {currentTime.toLocaleString('en-US', { 
