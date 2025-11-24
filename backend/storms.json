@@ -65,12 +65,12 @@
       "name": "Hurricane Irma",
       "year": 2017,
       "description": "Powerful Category 5 hurricane in the Atlantic",
-      "gameStart": "2025-11-23T00:00:00.000Z",
-      "gameEnd": "2025-11-24T00:00:00.000Z",
+      "gameStart": "2025-11-23T06:00:00.000Z",
+      "gameEnd": "2025-11-24T06:00:00.000Z",
       "timeframes": [
         {
           "timeframe": "0000",
-          "time": "2025-11-23T00:00:00.000Z",
+          "time": "2025-11-23T06:00:00.000Z",
           "type": "base",
           "lat": 23.5,
           "lon": -72.0,
@@ -80,7 +80,7 @@
         },
         {
           "timeframe": "0600",
-          "time": "2025-11-23T06:00:00.000Z",
+          "time": "2025-11-23T12:00:00.000Z",
           "type": "prediction",
           "lat": 24.2,
           "lon": -72.8,
@@ -90,7 +90,7 @@
         },
         {
           "timeframe": "1200",
-          "time": "2025-11-23T12:00:00.000Z",
+          "time": "2025-11-23T18:00:00.000Z",
           "type": "prediction",
           "lat": 25.0,
           "lon": -73.5,
@@ -100,7 +100,7 @@
         },
         {
           "timeframe": "1800",
-          "time": "2025-11-23T18:00:00.000Z",
+          "time": "2025-11-24T00:00:00.000Z",
           "type": "prediction",
           "lat": 25.8,
           "lon": -74.2,
@@ -110,7 +110,7 @@
         },
         {
           "timeframe": "0000",
-          "time": "2025-11-24T00:00:00.000Z",
+          "time": "2025-11-24T06:00:00.000Z",
           "type": "prediction",
           "lat": 26.5,
           "lon": -74.8,
@@ -125,12 +125,12 @@
       "name": "Hurricane Harvey",
       "year": 2017,
       "description": "Category 4 hurricane targeting Texas coast",
-      "gameStart": "2025-11-24T00:00:00.000Z",
-      "gameEnd": "2025-11-25T00:00:00.000Z",
+      "gameStart": "2025-11-24T06:00:00.000Z",
+      "gameEnd": "2025-11-25T06:00:00.000Z",
       "timeframes": [
         {
           "timeframe": "0000",
-          "time": "2025-11-24T00:00:00.000Z",
+          "time": "2025-11-24T06:00:00.000Z",
           "type": "base",
           "lat": 26.0,
           "lon": -95.5,
@@ -140,7 +140,7 @@
         },
         {
           "timeframe": "0600",
-          "time": "2025-11-24T06:00:00.000Z",
+          "time": "2025-11-24T12:00:00.000Z",
           "type": "prediction",
           "lat": 26.5,
           "lon": -95.7,
@@ -150,7 +150,7 @@
         },
         {
           "timeframe": "1200",
-          "time": "2025-11-24T12:00:00.000Z",
+          "time": "2025-11-24T18:00:00.000Z",
           "type": "prediction",
           "lat": 27.0,
           "lon": -95.9,
@@ -160,7 +160,7 @@
         },
         {
           "timeframe": "1800",
-          "time": "2025-11-24T18:00:00.000Z",
+          "time": "2025-11-25T00:00:00.000Z",
           "type": "prediction",
           "lat": 27.5,
           "lon": -96.0,
@@ -170,7 +170,7 @@
         },
         {
           "timeframe": "0000",
-          "time": "2025-11-25T00:00:00.000Z",
+          "time": "2025-11-25T06:00:00.000Z",
           "type": "prediction",
           "lat": 28.0,
           "lon": -96.5,
@@ -185,12 +185,12 @@
       "name": "Hurricane Maria",
       "year": 2017,
       "description": "Devastating Category 5 hurricane",
-      "gameStart": "2025-11-25T00:00:00.000Z",
-      "gameEnd": "2025-11-26T00:00:00.000Z",
+      "gameStart": "2025-11-25T06:00:00.000Z",
+      "gameEnd": "2025-11-26T06:00:00.000Z",
       "timeframes": [
         {
           "timeframe": "0000",
-          "time": "2025-11-25T00:00:00.000Z",
+          "time": "2025-11-25T06:00:00.000Z",
           "type": "base",
           "lat": 15.0,
           "lon": -61.0,
@@ -200,7 +200,7 @@
         },
         {
           "timeframe": "0600",
-          "time": "2025-11-25T06:00:00.000Z",
+          "time": "2025-11-25T12:00:00.000Z",
           "type": "prediction",
           "lat": 15.8,
           "lon": -62.5,
@@ -210,7 +210,7 @@
         },
         {
           "timeframe": "1200",
-          "time": "2025-11-25T12:00:00.000Z",
+          "time": "2025-11-25T18:00:00.000Z",
           "type": "prediction",
           "lat": 16.5,
           "lon": -64.0,
@@ -220,7 +220,7 @@
         },
         {
           "timeframe": "1800",
-          "time": "2025-11-25T18:00:00.000Z",
+          "time": "2025-11-26T00:00:00.000Z",
           "type": "prediction",
           "lat": 17.2,
           "lon": -65.5,
@@ -230,7 +230,7 @@
         },
         {
           "timeframe": "0000",
-          "time": "2025-11-26T00:00:00.000Z",
+          "time": "2025-11-26T06:00:00.000Z",
           "type": "prediction",
           "lat": 18.0,
           "lon": -66.8,
@@ -245,12 +245,12 @@
       "name": "Hurricane Wilma",
       "year": 2005,
       "description": "Most intense Atlantic hurricane on record",
-      "gameStart": "2025-11-26T00:00:00.000Z",
-      "gameEnd": "2025-11-27T00:00:00.000Z",
+      "gameStart": "2025-11-26T06:00:00.000Z",
+      "gameEnd": "2025-11-27T06:00:00.000Z",
       "timeframes": [
         {
           "timeframe": "0000",
-          "time": "2025-11-26T00:00:00.000Z",
+          "time": "2025-11-26T06:00:00.000Z",
           "type": "base",
           "lat": 19.2,
           "lon": -85.0,
@@ -260,7 +260,7 @@
         },
         {
           "timeframe": "0600",
-          "time": "2025-11-26T06:00:00.000Z",
+          "time": "2025-11-26T12:00:00.000Z",
           "type": "prediction",
           "lat": 19.8,
           "lon": -85.5,
@@ -270,7 +270,7 @@
         },
         {
           "timeframe": "1200",
-          "time": "2025-11-26T12:00:00.000Z",
+          "time": "2025-11-26T18:00:00.000Z",
           "type": "prediction",
           "lat": 20.5,
           "lon": -86.0,
@@ -280,7 +280,7 @@
         },
         {
           "timeframe": "1800",
-          "time": "2025-11-26T18:00:00.000Z",
+          "time": "2025-11-27T00:00:00.000Z",
           "type": "prediction",
           "lat": 22.0,
           "lon": -85.5,
@@ -290,7 +290,7 @@
         },
         {
           "timeframe": "0000",
-          "time": "2025-11-27T00:00:00.000Z",
+          "time": "2025-11-27T06:00:00.000Z",
           "type": "prediction",
           "lat": 24.0,
           "lon": -84.0,
