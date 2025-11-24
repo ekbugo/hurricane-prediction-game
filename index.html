@@ -56,6 +56,7 @@
             const [view, setView] = useState('predict');
             const [map, setMap] = useState(null);
             const [loading, setLoading] = useState(true);
+            const [showSSTLayer, setShowSSTLayer] = useState(false);
             
             // Leaderboard state
             const [leaderboardTab, setLeaderboardTab] = useState('current'); // current, alltime, bystorm, personal
@@ -235,6 +236,82 @@
                     });
                 }
 
+                // Add SST overlay if toggled on
+                if (showSSTLayer) {
+                    // Create a grid of SST data points around the storm
+                    // Using simplified SST data for Atlantic/Gulf regions
+                    const sstData = [
+                        // Gulf of Mexico (warm)
+                        { lat: 25, lon: -90, temp: 29 },
+                        { lat: 25, lon: -85, temp: 28.5 },
+                        { lat: 25, lon: -80, temp: 28 },
+                        { lat: 20, lon: -90, temp: 29.5 },
+                        { lat: 20, lon: -85, temp: 29 },
+                        { lat: 20, lon: -80, temp: 28.5 },
+                        { lat: 15, lon: -85, temp: 28 },
+                        { lat: 15, lon: -80, temp: 28.5 },
+                        { lat: 15, lon: -75, temp: 28 },
+                        // Atlantic (moderate)
+                        { lat: 25, lon: -75, temp: 27 },
+                        { lat: 25, lon: -70, temp: 26.5 },
+                        { lat: 25, lon: -65, temp: 26 },
+                        { lat: 20, lon: -75, temp: 27.5 },
+                        { lat: 20, lon: -70, temp: 27 },
+                        { lat: 20, lon: -65, temp: 26.5 },
+                        { lat: 15, lon: -70, temp: 27.5 },
+                        { lat: 15, lon: -65, temp: 27 },
+                        { lat: 15, lon: -60, temp: 26.5 },
+                        // Northern waters (cooler)
+                        { lat: 30, lon: -80, temp: 26 },
+                        { lat: 30, lon: -75, temp: 25.5 },
+                        { lat: 30, lon: -70, temp: 25 },
+                        { lat: 35, lon: -75, temp: 24 },
+                        { lat: 35, lon: -70, temp: 23.5 },
+                        { lat: 35, lon: -65, temp: 23 },
+                    ];
+
+                    const getSSTColor = (temp) => {
+                        if (temp >= 29) return '#DC2626'; // Very warm (red)
+                        if (temp >= 28) return '#F97316'; // Warm (orange)
+                        if (temp >= 27) return '#FBBF24'; // Moderate-warm (yellow)
+                        if (temp >= 26) return '#4ADE80'; // Moderate (green)
+                        if (temp >= 25) return '#3B82F6'; // Cool (blue)
+                        return '#1E3A8A'; // Cold (dark blue)
+                    };
+
+                    const getSSTLabel = (temp) => {
+                        if (temp >= 29) return 'Very Warm - Rapid Intensification Likely';
+                        if (temp >= 28) return 'Warm - Intensification Favorable';
+                        if (temp >= 27) return 'Moderate - Some Intensification Possible';
+                        if (temp >= 26) return 'Threshold - Minimal Intensification';
+                        return 'Cool - Weakening Likely';
+                    };
+
+                    // Draw SST circles on map
+                    sstData.forEach(point => {
+                        const circle = L.circle([point.lat, point.lon], {
+                            radius: 150000, // 150km radius
+                            color: getSSTColor(point.temp),
+                            fillColor: getSSTColor(point.temp),
+                            fillOpacity: 0.3,
+                            opacity: 0.5,
+                            weight: 1
+                        }).addTo(map);
+
+                        circle.bindPopup(`
+                            <div style="text-align: center;">
+                                <strong>Sea Surface Temp</strong><br>
+                                <div style="font-size: 1.5rem; font-weight: bold; color: ${getSSTColor(point.temp)};">
+                                    ${point.temp}°C
+                                </div>
+                                <div style="font-size: 0.85rem; margin-top: 4px;">
+                                    ${getSSTLabel(point.temp)}
+                                </div>
+                            </div>
+                        `);
+                    });
+                }
+                
                 const allMapPoints = [...releasedPoints];
                 if (userPredictions && userPredictions.length > 0) {
                     userPredictions.forEach(pred => {
@@ -251,7 +328,7 @@
                         console.log('Could not fit bounds:', error);
                     }
                 }
-            }, [map, gameState, userPredictions]);
+            }, [map, gameState, userPredictions, showSSTLayer]);
 
             const handlePredictionChange = (field, value) => {
                 setCurrentPrediction({
@@ -607,7 +684,54 @@
 
                     {/* Map */}
                     <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-                        <h2 className="text-xl font-bold text-gray-800 mb-4">Storm Track</h2>
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xl font-bold text-gray-800">Storm Track</h2>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => setShowSSTLayer(!showSSTLayer)}
+                                    className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                                        showSSTLayer 
+                                            ? 'bg-blue-600 text-white shadow-lg' 
+                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
+                                >
+                                    🌡️ Sea Surface Temp
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* SST Legend - only show when layer is active */}
+                        {showSSTLayer && (
+                            <div className="mb-4 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                                <div className="font-bold text-blue-900 mb-2">🌡️ Sea Surface Temperature Guide</div>
+                                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-4 h-4 rounded" style={{background: '#DC2626'}}></div>
+                                        <span><strong>≥29°C:</strong> Very Warm - Rapid intensification likely</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-4 h-4 rounded" style={{background: '#F97316'}}></div>
+                                        <span><strong>28-29°C:</strong> Warm - Intensification favorable</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-4 h-4 rounded" style={{background: '#FBBF24'}}></div>
+                                        <span><strong>27-28°C:</strong> Moderate - Some intensification possible</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-4 h-4 rounded" style={{background: '#4ADE80'}}></div>
+                                        <span><strong>26-27°C:</strong> Threshold - Minimal intensification</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-4 h-4 rounded" style={{background: '#3B82F6'}}></div>
+                                        <span><strong>&lt;26°C:</strong> Cool - Weakening likely</span>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-blue-700 mt-3">
+                                    💡 <strong>Tip:</strong> Hurricanes need water ≥26°C to maintain strength. Warmer water = more fuel for intensification!
+                                </p>
+                            </div>
+                        )}
+
                         <div id="map"></div>
                     </div>
 
