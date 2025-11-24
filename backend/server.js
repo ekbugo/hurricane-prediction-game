@@ -434,6 +434,167 @@ app.get('/api/participants/:stormId', async (req, res) => {
   }
 });
 
+// Get all-time leaderboard (cumulative across all storms)
+app.get('/api/leaderboard/all-time/global', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT 
+        username,
+        SUM(COALESCE(score, 0)) as total_score,
+        COUNT(DISTINCT storm_id) as storms_played,
+        COUNT(*) as total_predictions,
+        COUNT(score) as scored_predictions,
+        ROUND(AVG(COALESCE(score, 0))::numeric, 1) as avg_score,
+        MAX(score) as best_prediction
+      FROM predictions
+      WHERE score IS NOT NULL
+      GROUP BY username
+      HAVING COUNT(score) > 0
+      ORDER BY total_score DESC
+      LIMIT 100`
+    );
+    
+    res.json({
+      leaderboard: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching all-time leaderboard:', error);
+    res.status(500).json({ error: 'Failed to fetch all-time leaderboard' });
+  }
+});
+
+// Get leaderboard by storm history (all past storms with scores)
+app.get('/api/leaderboard/by-storm/all', async (req, res) => {
+  try {
+    // Get unique storms that have scored predictions
+    const stormsResult = await pool.query(
+      `SELECT DISTINCT storm_id
+       FROM predictions
+       WHERE score IS NOT NULL
+       ORDER BY storm_id DESC`
+    );
+    
+    const stormLeaderboards = [];
+    
+    for (const stormRow of stormsResult.rows) {
+      const stormId = stormRow.storm_id;
+      
+      // Get leaderboard for this storm
+      const leaderboardResult = await pool.query(
+        `SELECT 
+          username,
+          SUM(COALESCE(score, 0)) as total_score,
+          COUNT(*) as predictions_count,
+          ROUND(AVG(COALESCE(score, 0))::numeric, 1) as avg_score
+        FROM predictions
+        WHERE storm_id = $1 AND score IS NOT NULL
+        GROUP BY username
+        HAVING COUNT(score) > 0
+        ORDER BY total_score DESC
+        LIMIT 10`,
+        [stormId]
+      );
+      
+      // Get storm info from loaded storms
+      const stormInfo = HISTORICAL_STORMS.find(s => s.id === stormId);
+      
+      stormLeaderboards.push({
+        stormId,
+        stormName: stormInfo ? stormInfo.name : stormId,
+        stormYear: stormInfo ? stormInfo.year : null,
+        leaderboard: leaderboardResult.rows
+      });
+    }
+    
+    res.json({
+      storms: stormLeaderboards
+    });
+  } catch (error) {
+    console.error('Error fetching storm history:', error);
+    res.status(500).json({ error: 'Failed to fetch storm history' });
+  }
+});
+
+// Get user's personal best and stats
+app.get('/api/user/:username/stats', async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    // Get overall stats
+    const statsResult = await pool.query(
+      `SELECT 
+        COUNT(DISTINCT storm_id) as storms_played,
+        COUNT(*) as total_predictions,
+        COUNT(score) as scored_predictions,
+        SUM(COALESCE(score, 0)) as total_score,
+        ROUND(AVG(COALESCE(score, 0))::numeric, 1) as avg_score,
+        MAX(score) as best_score,
+        MIN(score) as worst_score
+      FROM predictions
+      WHERE username = $1 AND score IS NOT NULL`,
+      [username]
+    );
+    
+    // Get best predictions
+    const bestPredictionsResult = await pool.query(
+      `SELECT 
+        storm_id,
+        timeframe,
+        score,
+        predicted_lat,
+        predicted_lon,
+        predicted_wind_speed,
+        predicted_pressure,
+        actual_lat,
+        actual_lon,
+        actual_wind_speed,
+        actual_pressure,
+        submitted_at
+      FROM predictions
+      WHERE username = $1 AND score IS NOT NULL
+      ORDER BY score DESC
+      LIMIT 5`,
+      [username]
+    );
+    
+    // Add storm names to best predictions
+    const bestPredictions = bestPredictionsResult.rows.map(pred => {
+      const stormInfo = HISTORICAL_STORMS.find(s => s.id === pred.storm_id);
+      return {
+        ...pred,
+        stormName: stormInfo ? stormInfo.name : pred.storm_id
+      };
+    });
+    
+    // Get rank in all-time leaderboard
+    const rankResult = await pool.query(
+      `WITH ranked_users AS (
+        SELECT 
+          username,
+          SUM(COALESCE(score, 0)) as total_score,
+          RANK() OVER (ORDER BY SUM(COALESCE(score, 0)) DESC) as rank
+        FROM predictions
+        WHERE score IS NOT NULL
+        GROUP BY username
+      )
+      SELECT rank, total_score
+      FROM ranked_users
+      WHERE username = $1`,
+      [username]
+    );
+    
+    res.json({
+      username,
+      stats: statsResult.rows[0] || {},
+      bestPredictions,
+      globalRank: rankResult.rows[0] || { rank: null, total_score: 0 }
+    });
+  } catch (error) {
+    console.error('Error fetching user stats:', error);
+    res.status(500).json({ error: 'Failed to fetch user stats' });
+  }
+});
+
 // Health check
 app.get('/api/health', async (req, res) => {
   try {
