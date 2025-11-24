@@ -28,9 +28,9 @@ function loadStorms() {
     const stormsData = fs.readFileSync(stormsPath, 'utf8');
     const parsed = JSON.parse(stormsData);
     HISTORICAL_STORMS = parsed.storms;
-    console.log(`✅ Loaded ${HISTORICAL_STORMS.length} historical storms from storms.json`);
+    console.log(`âœ… Loaded ${HISTORICAL_STORMS.length} historical storms from storms.json`);
   } catch (error) {
-    console.error('⚠️ Error loading storms.json:', error.message);
+    console.error('âš ï¸ Error loading storms.json:', error.message);
     HISTORICAL_STORMS = [];
   }
 }
@@ -68,9 +68,9 @@ async function initializeDatabase() {
       CREATE INDEX IF NOT EXISTS idx_username_storm ON predictions(username, storm_id);
     `);
     
-    console.log('✅ Database table ready (existing data preserved)');
+    console.log('âœ… Database table ready (existing data preserved)');
   } catch (error) {
-    console.error('⚠️ Error initializing database:', error.message);
+    console.error('âš ï¸ Error initializing database:', error.message);
   }
 }
 
@@ -118,7 +118,7 @@ async function scorePredictions(stormId, timeframe, actualData) {
       [stormId, timeframe]
     );
 
-    console.log(`📊 Scoring ${predictions.rows.length} predictions for ${stormId} ${timeframe}`);
+    console.log(`ðŸ“Š Scoring ${predictions.rows.length} predictions for ${stormId} ${timeframe}`);
 
     for (const pred of predictions.rows) {
       // Calculate distance error
@@ -150,10 +150,10 @@ async function scorePredictions(stormId, timeframe, actualData) {
         [totalScore, actualData.lat, actualData.lon, actualData.windSpeed, actualData.pressure, pred.id]
       );
 
-      console.log(`  ✓ ${pred.username}: ${totalScore} pts (Track: ${trackScore}, Intensity: ${intensityScore}, Distance: ${distanceError.toFixed(1)} NM)`);
+      console.log(`  âœ“ ${pred.username}: ${totalScore} pts (Track: ${trackScore}, Intensity: ${intensityScore}, Distance: ${distanceError.toFixed(1)} NM)`);
     }
 
-    console.log(`✅ Scoring complete for ${stormId} ${timeframe}`);
+    console.log(`âœ… Scoring complete for ${stormId} ${timeframe}`);
   } catch (error) {
     console.error('Error scoring predictions:', error);
   }
@@ -198,16 +198,27 @@ async function checkAndScore() {
 // Run scoring check every minute
 setInterval(checkAndScore, 60000);
 
-// Get current active storm (24-hour rotation)
+// Get current active storm (24-hour rotation in UTC-6/Central Time)
 function getCurrentStorm() {
   if (HISTORICAL_STORMS.length === 0) return null;
   
-  const referenceDate = new Date('2025-01-01T00:00:00Z');
+  // Get current time in UTC-6 (Central Time)
   const now = new Date();
-  const daysSinceReference = Math.floor((now - referenceDate) / (24 * 60 * 60 * 1000));
-  const currentStormIndex = daysSinceReference % HISTORICAL_STORMS.length;
+  const utcMinus6 = new Date(now.getTime() - (6 * 60 * 60 * 1000));
   
-  return HISTORICAL_STORMS[currentStormIndex];
+  // Find which storm should be active based on gameStart times
+  // Note: gameStart/gameEnd in storms.json are in UTC, but represent midnight UTC-6
+  for (const storm of HISTORICAL_STORMS) {
+    const stormStart = new Date(storm.gameStart);
+    const stormEnd = new Date(storm.gameEnd);
+    
+    if (now >= stormStart && now < stormEnd) {
+      return storm;
+    }
+  }
+  
+  // If no storm matches, return the first one as fallback
+  return HISTORICAL_STORMS[0];
 }
 
 // Determine which timeframe is currently active
@@ -320,7 +331,7 @@ app.post('/api/predictions', async (req, res) => {
       [predictionId, username, stormId, timeframe, lat, lon, windSpeed, pressure]
     );
     
-    console.log(`💾 Saved prediction: ${username} - ${stormId} - ${timeframe}`);
+    console.log(`ðŸ’¾ Saved prediction: ${username} - ${stormId} - ${timeframe}`);
     
     res.status(201).json({
       success: true,
@@ -475,7 +486,7 @@ app.post('/api/admin/score/:stormId/:timeframe', async (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🌀 Hurricane Prediction Game API running on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🗄️  Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
+  console.log(`ðŸŒ€ Hurricane Prediction Game API running on port ${PORT}`);
+  console.log(`ðŸ“Š Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`ðŸ—„ï¸  Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
 });
