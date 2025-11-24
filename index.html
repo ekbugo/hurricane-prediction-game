@@ -779,11 +779,11 @@
                         <div key="leaderboard-view" className="bg-white rounded-lg shadow-lg p-6">
                             <h2 className="text-2xl font-bold text-gray-800 mb-6">🏆 Leaderboards</h2>
                             
-                            {/* Participants Count */}
-                            {participants.length > 0 && (
+                            {/* Participants Count - Only show for Current Storm tab */}
+                            {leaderboardTab === 'current' && participants.length > 0 && (
                                 <div className="mb-6 p-4 bg-blue-50 rounded-lg">
                                     <h3 className="font-bold text-blue-900 mb-3">
-                                        👥 {participants.length} Participant{participants.length !== 1 ? 's' : ''} Competing
+                                        👥 {participants.length} Participant{participants.length !== 1 ? 's' : ''} Competing in {gameState.storm.name}
                                     </h3>
                                     <div className="flex flex-wrap gap-2">
                                         {participants.map(p => (
@@ -792,6 +792,9 @@
                                             </span>
                                         ))}
                                     </div>
+                                    <p className="text-xs text-blue-700 mt-2">
+                                        Numbers show how many predictions each user has submitted for this storm
+                                    </p>
                                 </div>
                             )}
                             
