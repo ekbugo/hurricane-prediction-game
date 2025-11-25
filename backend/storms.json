@@ -299,6 +299,426 @@
           "category": 3
         }
       ]
+    },
+    {
+      "id": "katrina-day6",
+      "name": "Hurricane Katrina",
+      "year": 2005,
+      "description": "Catastrophic Category 5 hurricane",
+      "gameStart": "2025-11-27T06:00:00.000Z",
+      "gameEnd": "2025-11-28T06:00:00.000Z",
+      "timeframes": [
+        {
+          "timeframe": "0000",
+          "time": "2025-11-27T06:00:00.000Z",
+          "type": "base",
+          "lat": 23.8,
+          "lon": -87.7,
+          "windSpeed": 115,
+          "pressure": 950,
+          "category": 3
+        },
+        {
+          "timeframe": "0600",
+          "time": "2025-11-27T12:00:00.000Z",
+          "type": "prediction",
+          "lat": 24.4,
+          "lon": -88.0,
+          "windSpeed": 140,
+          "pressure": 930,
+          "category": 4
+        },
+        {
+          "timeframe": "1200",
+          "time": "2025-11-27T18:00:00.000Z",
+          "type": "prediction",
+          "lat": 25.1,
+          "lon": -88.2,
+          "windSpeed": 175,
+          "pressure": 902,
+          "category": 5
+        },
+        {
+          "timeframe": "1800",
+          "time": "2025-11-28T00:00:00.000Z",
+          "type": "prediction",
+          "lat": 25.9,
+          "lon": -88.5,
+          "windSpeed": 175,
+          "pressure": 902,
+          "category": 5
+        },
+        {
+          "timeframe": "0000",
+          "time": "2025-11-28T06:00:00.000Z",
+          "type": "prediction",
+          "lat": 26.8,
+          "lon": -88.8,
+          "windSpeed": 165,
+          "pressure": 913,
+          "category": 5
+        }
+      ]
+    },
+    {
+      "id": "andrew-day7",
+      "name": "Hurricane Andrew",
+      "year": 1992,
+      "description": "Category 5 hurricane that devastated South Florida",
+      "gameStart": "2025-11-28T06:00:00.000Z",
+      "gameEnd": "2025-11-29T06:00:00.000Z",
+      "timeframes": [
+        {
+          "timeframe": "0000",
+          "time": "2025-11-28T06:00:00.000Z",
+          "type": "base",
+          "lat": 25.4,
+          "lon": -78.0,
+          "windSpeed": 150,
+          "pressure": 922,
+          "category": 4
+        },
+        {
+          "timeframe": "0600",
+          "time": "2025-11-28T12:00:00.000Z",
+          "type": "prediction",
+          "lat": 25.5,
+          "lon": -79.0,
+          "windSpeed": 165,
+          "pressure": 922,
+          "category": 5
+        },
+        {
+          "timeframe": "1200",
+          "time": "2025-11-28T18:00:00.000Z",
+          "type": "prediction",
+          "lat": 25.5,
+          "lon": -80.2,
+          "windSpeed": 165,
+          "pressure": 922,
+          "category": 5
+        },
+        {
+          "timeframe": "1800",
+          "time": "2025-11-29T00:00:00.000Z",
+          "type": "prediction",
+          "lat": 25.8,
+          "lon": -81.5,
+          "windSpeed": 145,
+          "pressure": 930,
+          "category": 4
+        },
+        {
+          "timeframe": "0000",
+          "time": "2025-11-29T06:00:00.000Z",
+          "type": "prediction",
+          "lat": 26.2,
+          "lon": -82.5,
+          "windSpeed": 125,
+          "pressure": 945,
+          "category": 3
+        }
+      ]
+    },
+    {
+      "id": "michael-day8",
+      "name": "Hurricane Michael",
+      "year": 2018,
+      "description": "Category 5 hurricane that hit Florida Panhandle",
+      "gameStart": "2025-11-29T06:00:00.000Z",
+      "gameEnd": "2025-11-30T06:00:00.000Z",
+      "timeframes": [
+        {
+          "timeframe": "0000",
+          "time": "2025-11-29T06:00:00.000Z",
+          "type": "base",
+          "lat": 26.0,
+          "lon": -86.5,
+          "windSpeed": 110,
+          "pressure": 965,
+          "category": 2
+        },
+        {
+          "timeframe": "0600",
+          "time": "2025-11-29T12:00:00.000Z",
+          "type": "prediction",
+          "lat": 27.0,
+          "lon": -86.0,
+          "windSpeed": 125,
+          "pressure": 950,
+          "category": 3
+        },
+        {
+          "timeframe": "1200",
+          "time": "2025-11-29T18:00:00.000Z",
+          "type": "prediction",
+          "lat": 28.2,
+          "lon": -85.5,
+          "windSpeed": 145,
+          "pressure": 933,
+          "category": 4
+        },
+        {
+          "timeframe": "1800",
+          "time": "2025-11-30T00:00:00.000Z",
+          "type": "prediction",
+          "lat": 29.5,
+          "lon": -85.2,
+          "windSpeed": 160,
+          "pressure": 919,
+          "category": 5
+        },
+        {
+          "timeframe": "0000",
+          "time": "2025-11-30T06:00:00.000Z",
+          "type": "prediction",
+          "lat": 30.8,
+          "lon": -85.0,
+          "windSpeed": 155,
+          "pressure": 922,
+          "category": 5
+        }
+      ]
+    },
+    {
+      "id": "rita-day9",
+      "name": "Hurricane Rita",
+      "year": 2005,
+      "description": "Category 5 hurricane in the Gulf of Mexico",
+      "gameStart": "2025-11-30T06:00:00.000Z",
+      "gameEnd": "2025-12-01T06:00:00.000Z",
+      "timeframes": [
+        {
+          "timeframe": "0000",
+          "time": "2025-11-30T06:00:00.000Z",
+          "type": "base",
+          "lat": 24.5,
+          "lon": -91.0,
+          "windSpeed": 115,
+          "pressure": 957,
+          "category": 3
+        },
+        {
+          "timeframe": "0600",
+          "time": "2025-11-30T12:00:00.000Z",
+          "type": "prediction",
+          "lat": 25.0,
+          "lon": -91.5,
+          "windSpeed": 140,
+          "pressure": 935,
+          "category": 4
+        },
+        {
+          "timeframe": "1200",
+          "time": "2025-11-30T18:00:00.000Z",
+          "type": "prediction",
+          "lat": 25.5,
+          "lon": -92.0,
+          "windSpeed": 165,
+          "pressure": 913,
+          "category": 5
+        },
+        {
+          "timeframe": "1800",
+          "time": "2025-12-01T00:00:00.000Z",
+          "type": "prediction",
+          "lat": 26.5,
+          "lon": -92.5,
+          "windSpeed": 180,
+          "pressure": 895,
+          "category": 5
+        },
+        {
+          "timeframe": "0000",
+          "time": "2025-12-01T06:00:00.000Z",
+          "type": "prediction",
+          "lat": 27.5,
+          "lon": -93.0,
+          "windSpeed": 165,
+          "pressure": 910,
+          "category": 5
+        }
+      ]
+    },
+    {
+      "id": "charley-day10",
+      "name": "Hurricane Charley",
+      "year": 2004,
+      "description": "Compact but intense Category 4 hurricane",
+      "gameStart": "2025-12-01T06:00:00.000Z",
+      "gameEnd": "2025-12-02T06:00:00.000Z",
+      "timeframes": [
+        {
+          "timeframe": "0000",
+          "time": "2025-12-01T06:00:00.000Z",
+          "type": "base",
+          "lat": 24.5,
+          "lon": -82.0,
+          "windSpeed": 110,
+          "pressure": 965,
+          "category": 2
+        },
+        {
+          "timeframe": "0600",
+          "time": "2025-12-01T12:00:00.000Z",
+          "type": "prediction",
+          "lat": 25.2,
+          "lon": -82.1,
+          "windSpeed": 125,
+          "pressure": 955,
+          "category": 3
+        },
+        {
+          "timeframe": "1200",
+          "time": "2025-12-01T18:00:00.000Z",
+          "type": "prediction",
+          "lat": 26.0,
+          "lon": -82.3,
+          "windSpeed": 145,
+          "pressure": 941,
+          "category": 4
+        },
+        {
+          "timeframe": "1800",
+          "time": "2025-12-02T00:00:00.000Z",
+          "type": "prediction",
+          "lat": 26.8,
+          "lon": -82.0,
+          "windSpeed": 150,
+          "pressure": 941,
+          "category": 4
+        },
+        {
+          "timeframe": "0000",
+          "time": "2025-12-02T06:00:00.000Z",
+          "type": "prediction",
+          "lat": 27.8,
+          "lon": -81.5,
+          "windSpeed": 135,
+          "pressure": 950,
+          "category": 4
+        }
+      ]
+    },
+    {
+      "id": "ivan-day11",
+      "name": "Hurricane Ivan",
+      "year": 2004,
+      "description": "Long-lived Category 5 hurricane",
+      "gameStart": "2025-12-02T06:00:00.000Z",
+      "gameEnd": "2025-12-03T06:00:00.000Z",
+      "timeframes": [
+        {
+          "timeframe": "0000",
+          "time": "2025-12-02T06:00:00.000Z",
+          "type": "base",
+          "lat": 16.0,
+          "lon": -75.0,
+          "windSpeed": 120,
+          "pressure": 955,
+          "category": 3
+        },
+        {
+          "timeframe": "0600",
+          "time": "2025-12-02T12:00:00.000Z",
+          "type": "prediction",
+          "lat": 16.8,
+          "lon": -76.0,
+          "windSpeed": 140,
+          "pressure": 935,
+          "category": 4
+        },
+        {
+          "timeframe": "1200",
+          "time": "2025-12-02T18:00:00.000Z",
+          "type": "prediction",
+          "lat": 17.5,
+          "lon": -77.0,
+          "windSpeed": 165,
+          "pressure": 910,
+          "category": 5
+        },
+        {
+          "timeframe": "1800",
+          "time": "2025-12-03T00:00:00.000Z",
+          "type": "prediction",
+          "lat": 18.2,
+          "lon": -78.0,
+          "windSpeed": 165,
+          "pressure": 910,
+          "category": 5
+        },
+        {
+          "timeframe": "0000",
+          "time": "2025-12-03T06:00:00.000Z",
+          "type": "prediction",
+          "lat": 19.0,
+          "lon": -79.0,
+          "windSpeed": 155,
+          "pressure": 918,
+          "category": 5
+        }
+      ]
+    },
+    {
+      "id": "dorian-day12",
+      "name": "Hurricane Dorian",
+      "year": 2019,
+      "description": "Category 5 hurricane that stalled over Bahamas",
+      "gameStart": "2025-12-03T06:00:00.000Z",
+      "gameEnd": "2025-12-04T06:00:00.000Z",
+      "timeframes": [
+        {
+          "timeframe": "0000",
+          "time": "2025-12-03T06:00:00.000Z",
+          "type": "base",
+          "lat": 24.5,
+          "lon": -75.0,
+          "windSpeed": 130,
+          "pressure": 948,
+          "category": 3
+        },
+        {
+          "timeframe": "0600",
+          "time": "2025-12-03T12:00:00.000Z",
+          "type": "prediction",
+          "lat": 25.2,
+          "lon": -76.0,
+          "windSpeed": 150,
+          "pressure": 927,
+          "category": 4
+        },
+        {
+          "timeframe": "1200",
+          "time": "2025-12-03T18:00:00.000Z",
+          "type": "prediction",
+          "lat": 26.0,
+          "lon": -77.0,
+          "windSpeed": 185,
+          "pressure": 910,
+          "category": 5
+        },
+        {
+          "timeframe": "1800",
+          "time": "2025-12-04T00:00:00.000Z",
+          "type": "prediction",
+          "lat": 26.5,
+          "lon": -77.5,
+          "windSpeed": 185,
+          "pressure": 910,
+          "category": 5
+        },
+        {
+          "timeframe": "0000",
+          "time": "2025-12-04T06:00:00.000Z",
+          "type": "prediction",
+          "lat": 27.0,
+          "lon": -78.0,
+          "windSpeed": 175,
+          "pressure": 914,
+          "category": 5
+        }
+      ]
     }
   ],
   "rotationSettings": {
