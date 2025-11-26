@@ -76,6 +76,138 @@ async function initializeDatabase() {
 
 initializeDatabase();
 
+// ============================================
+// BADGE SYSTEM - AUTO INITIALIZATION
+// ============================================
+
+async function initializeBadgeTables() {
+  try {
+    console.log('🔄 Initializing badge tables...');
+    
+    // Create badge_definitions table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS badge_definitions (
+        id SERIAL PRIMARY KEY,
+        badge_id VARCHAR(50) UNIQUE NOT NULL,
+        name VARCHAR(100) NOT NULL,
+        description TEXT NOT NULL,
+        category VARCHAR(50) NOT NULL,
+        tier VARCHAR(20) NOT NULL,
+        icon VARCHAR(10) NOT NULL,
+        points_value INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    console.log('✅ badge_definitions table ready');
+    
+    // Create user_badges table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_badges (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(100) NOT NULL,
+        badge_id VARCHAR(50) NOT NULL,
+        earned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        metadata JSONB,
+        UNIQUE(username, badge_id)
+      )
+    `);
+    
+    console.log('✅ user_badges table ready');
+    
+    // Create indexes
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_user_badges_username ON user_badges(username)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_user_badges_badge_id ON user_badges(badge_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_badge_definitions_category ON badge_definitions(category)`);
+    
+    console.log('✅ Indexes created');
+    
+    // Check if badges already exist
+    const checkBadges = await pool.query(`SELECT COUNT(*) FROM badge_definitions`);
+    const badgeCount = parseInt(checkBadges.rows[0].count);
+    
+    if (badgeCount === 0) {
+      console.log('📝 Inserting badge definitions...');
+      
+      // Insert ALL badge definitions
+      await pool.query(`
+        INSERT INTO badge_definitions (badge_id, name, description, category, tier, icon, points_value) VALUES
+        
+        -- PERFORMANCE BADGES
+        ('sharpshooter_bronze', 'Sharpshooter I', 'Predict within 50 NM of actual position', 'performance', 'bronze', '🎯', 100),
+        ('sharpshooter_silver', 'Sharpshooter II', 'Predict within 50 NM three times', 'performance', 'silver', '🎯', 250),
+        ('sharpshooter_gold', 'Sharpshooter III', 'Predict within 50 NM ten times', 'performance', 'gold', '🎯', 500),
+        ('bullseye', 'Bullseye', 'Predict within 25 NM of actual position', 'performance', 'gold', '🎪', 300),
+        ('laser_precision', 'Laser Precision', 'Predict within 10 NM of actual position', 'performance', 'platinum', '🔬', 500),
+        ('intensity_expert_bronze', 'Intensity Expert I', 'Wind speed within 10 mph', 'performance', 'bronze', '🌡️', 100),
+        ('intensity_expert_silver', 'Intensity Expert II', 'Wind speed within 10 mph three times', 'performance', 'silver', '🌡️', 250),
+        ('intensity_expert_gold', 'Intensity Expert III', 'Wind speed within 5 mph five times', 'performance', 'gold', '🌡️', 500),
+        ('pressure_perfect', 'Pressure Perfect', 'Pressure within 3 mb', 'performance', 'gold', '🎈', 200),
+        ('diamond_prediction', 'Diamond Prediction', 'Score 1900+ points on a single prediction', 'performance', 'diamond', '💎', 1000),
+        ('oracle', 'The Oracle', 'Score 1950+ points on a single prediction', 'performance', 'platinum', '🔮', 1500),
+        ('perfect_storm', 'Perfect Storm', 'Score exactly 2000 points', 'performance', 'diamond', '⭐', 5000),
+        
+        -- CONSISTENCY BADGES
+        ('early_bird', 'Early Bird', 'Submit prediction within first hour of unlock', 'consistency', 'bronze', '🌅', 50),
+        ('speed_demon', 'Speed Demon', 'Submit within 2 minutes of unlock', 'consistency', 'silver', '⚡', 100),
+        ('lightning_fast', 'Lightning Fast', 'Submit within 60 seconds of unlock', 'consistency', 'gold', '⚡', 200),
+        ('never_miss', 'Never Miss', 'Submit all 4 predictions for a storm', 'consistency', 'bronze', '✅', 150),
+        ('perfect_attendance', 'Perfect Attendance', 'Submit all predictions for 3 storms in a row', 'consistency', 'silver', '📋', 300),
+        ('iron_will', 'Iron Will', 'Submit all predictions for 5 storms in a row', 'consistency', 'gold', '💪', 600),
+        ('streak_3', '3-Day Streak', 'Submit predictions 3 days in a row', 'consistency', 'bronze', '🔥', 100),
+        ('streak_7', '7-Day Streak', 'Submit predictions 7 days in a row', 'consistency', 'silver', '🔥', 300),
+        ('streak_14', '14-Day Streak', 'Submit predictions 14 days in a row', 'consistency', 'gold', '🔥', 700),
+        ('streak_30', '30-Day Streak', 'Submit predictions 30 days in a row', 'consistency', 'platinum', '🔥', 2000),
+        
+        -- MILESTONE BADGES
+        ('first_prediction', 'First Steps', 'Submit your first prediction', 'milestone', 'bronze', '👶', 50),
+        ('veteran_10', 'Veteran', 'Submit 10 predictions', 'milestone', 'bronze', '🎖️', 100),
+        ('veteran_50', 'Experienced', 'Submit 50 predictions', 'milestone', 'silver', '🎖️', 300),
+        ('veteran_100', 'Master Forecaster', 'Submit 100 predictions', 'milestone', 'gold', '🎖️', 1000),
+        ('veteran_500', 'Legend', 'Submit 500 predictions', 'milestone', 'platinum', '🎖️', 5000),
+        ('points_5k', '5K Club', 'Earn 5,000 total points', 'milestone', 'bronze', '💯', 200),
+        ('points_25k', '25K Club', 'Earn 25,000 total points', 'milestone', 'silver', '💯', 500),
+        ('points_50k', '50K Club', 'Earn 50,000 total points', 'milestone', 'gold', '💯', 1000),
+        ('points_100k', '100K Club', 'Earn 100,000 total points', 'milestone', 'platinum', '💯', 3000),
+        ('storm_survivor_5', 'Storm Survivor', 'Complete 5 different storms', 'milestone', 'bronze', '🌀', 200),
+        ('storm_survivor_12', 'Storm Veteran', 'Complete all 12 storms', 'milestone', 'silver', '🌀', 500),
+        
+        -- COMPETITIVE BADGES
+        ('top_10', 'Top 10', 'Finish in top 10 for any storm', 'competitive', 'bronze', '🏅', 200),
+        ('top_5', 'Top 5', 'Finish in top 5 for any storm', 'competitive', 'silver', '🥈', 400),
+        ('podium', 'Podium Finish', 'Finish in top 3 for any storm', 'competitive', 'gold', '🥉', 800),
+        ('runner_up', 'Runner-Up', 'Finish 2nd place in any storm', 'competitive', 'gold', '🥈', 1200),
+        ('champion', 'Storm Champion', 'Finish 1st place in any storm', 'competitive', 'platinum', '👑', 2000),
+        ('repeat_champion', 'Repeat Champion', 'Finish 1st place in 3 different storms', 'competitive', 'diamond', '👑', 5000),
+        ('above_average', 'Above Average', 'Score above 1500 points five times', 'competitive', 'bronze', '📈', 200),
+        ('consistently_great', 'Consistently Great', 'Score above 1700 points ten times', 'competitive', 'silver', '📊', 500),
+        
+        -- SPECIAL/FUN BADGES
+        ('comeback_kid', 'Comeback Kid', 'Go from bottom 50% to top 25% within one storm', 'special', 'gold', '💪', 300),
+        ('night_owl', 'Night Owl', 'Submit prediction between 10PM-6AM', 'special', 'bronze', '🦉', 50),
+        ('early_morning', 'Early Riser', 'Submit prediction between 5AM-7AM', 'special', 'bronze', '☀️', 50),
+        ('cat5_survivor', 'Category 5 Survivor', 'Complete a Category 5 storm with score >1500', 'special', 'gold', '🌪️', 500),
+        ('rapid_intensification', 'Rapid Intensification Expert', 'Correctly predict >25 mph wind increase', 'special', 'gold', '📈', 400),
+        ('close_call', 'Too Close!', 'Predict track within 5 NM but intensity off by >30 mph', 'special', 'bronze', '😅', 100),
+        ('lucky_number', 'Lucky Number', 'Score ends in 777', 'special', 'bronze', '🎰', 100),
+        ('perfect_average', 'Perfect Average', 'Average exactly 1500 points over 10 predictions', 'special', 'silver', '⚖️', 200),
+        ('weekend_warrior', 'Weekend Warrior', 'Submit predictions on 4 consecutive weekends', 'special', 'silver', '🎮', 300),
+        ('dedication', 'True Dedication', 'Play for 30 consecutive days', 'special', 'platinum', '🏆', 2000)
+      `);
+      
+      console.log(`✅ Inserted 50 badge definitions`);
+    } else {
+      console.log(`ℹ️  ${badgeCount} badges already exist, skipping insert`);
+    }
+    
+    console.log('🎉 Badge system initialization complete!');
+  } catch (error) {
+    console.error('❌ Error initializing badge tables:', error);
+  }
+}
+
+initializeBadgeTables();
+
 // Calculate great-circle distance between two points (Haversine formula)
 // Returns distance in nautical miles
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -106,6 +238,116 @@ function calculateIntensityScore(windError, pressureError) {
   const pressureScore = 400 * Math.exp(-0.05 * Math.abs(pressureError));
   const totalScore = windScore + pressureScore;
   return Math.round(Math.max(0, totalScore));
+}
+
+// ============================================
+// BADGE HELPER FUNCTIONS
+// ============================================
+
+async function hasBadge(username, badge_id) {
+  const result = await pool.query(
+    `SELECT 1 FROM user_badges WHERE username = $1 AND badge_id = $2`,
+    [username, badge_id]
+  );
+  return result.rows.length > 0;
+}
+
+async function awardBadge(username, badge_id, metadata = {}) {
+  try {
+    await pool.query(
+      `INSERT INTO user_badges (username, badge_id, metadata)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (username, badge_id) DO NOTHING`,
+      [username, badge_id, JSON.stringify(metadata)]
+    );
+    console.log(`🏅 ${username} earned badge: ${badge_id}`);
+  } catch (error) {
+    console.error('Error awarding badge:', error);
+  }
+}
+
+// Check and award badges after scoring
+async function checkAndAwardBadges(username, prediction) {
+  try {
+    // Get user's total stats
+    const statsResult = await pool.query(
+      `SELECT 
+        COUNT(*) as total_predictions, 
+        SUM(COALESCE(score, 0)) as total_score,
+        COUNT(DISTINCT storm_id) as unique_storms
+       FROM predictions 
+       WHERE username = $1 AND score IS NOT NULL`,
+      [username]
+    );
+    
+    const totalPredictions = parseInt(statsResult.rows[0].total_predictions);
+    const totalScore = parseInt(statsResult.rows[0].total_score);
+    const uniqueStorms = parseInt(statsResult.rows[0].unique_storms);
+    
+    // MILESTONE BADGES - First prediction
+    if (totalPredictions === 1 && !await hasBadge(username, 'first_prediction')) {
+      await awardBadge(username, 'first_prediction', {});
+    }
+    
+    // MILESTONE BADGES - Prediction counts
+    if (totalPredictions === 10 && !await hasBadge(username, 'veteran_10')) {
+      await awardBadge(username, 'veteran_10', { count: 10 });
+    }
+    if (totalPredictions === 50 && !await hasBadge(username, 'veteran_50')) {
+      await awardBadge(username, 'veteran_50', { count: 50 });
+    }
+    if (totalPredictions === 100 && !await hasBadge(username, 'veteran_100')) {
+      await awardBadge(username, 'veteran_100', { count: 100 });
+    }
+    if (totalPredictions === 500 && !await hasBadge(username, 'veteran_500')) {
+      await awardBadge(username, 'veteran_500', { count: 500 });
+    }
+    
+    // MILESTONE BADGES - Points
+    if (totalScore >= 5000 && !await hasBadge(username, 'points_5k')) {
+      await awardBadge(username, 'points_5k', { points: totalScore });
+    }
+    if (totalScore >= 25000 && !await hasBadge(username, 'points_25k')) {
+      await awardBadge(username, 'points_25k', { points: totalScore });
+    }
+    if (totalScore >= 50000 && !await hasBadge(username, 'points_50k')) {
+      await awardBadge(username, 'points_50k', { points: totalScore });
+    }
+    if (totalScore >= 100000 && !await hasBadge(username, 'points_100k')) {
+      await awardBadge(username, 'points_100k', { points: totalScore });
+    }
+    
+    // MILESTONE BADGES - Storms
+    if (uniqueStorms === 5 && !await hasBadge(username, 'storm_survivor_5')) {
+      await awardBadge(username, 'storm_survivor_5', { storms: 5 });
+    }
+    if (uniqueStorms === 12 && !await hasBadge(username, 'storm_survivor_12')) {
+      await awardBadge(username, 'storm_survivor_12', { storms: 12 });
+    }
+    
+    // PERFORMANCE BADGES - Score based (if prediction has score)
+    if (prediction && prediction.score) {
+      if (prediction.score >= 1900 && !await hasBadge(username, 'diamond_prediction')) {
+        await awardBadge(username, 'diamond_prediction', { score: prediction.score });
+      }
+      if (prediction.score >= 1950 && !await hasBadge(username, 'oracle')) {
+        await awardBadge(username, 'oracle', { score: prediction.score });
+      }
+      if (prediction.score === 2000 && !await hasBadge(username, 'perfect_storm')) {
+        await awardBadge(username, 'perfect_storm', { score: 2000 });
+      }
+      
+      // Lucky number badge
+      const scoreStr = prediction.score.toString();
+      if (scoreStr.endsWith('777') && !await hasBadge(username, 'lucky_number')) {
+        await awardBadge(username, 'lucky_number', { score: prediction.score });
+      }
+    }
+    
+    console.log(`✅ Badge check complete for ${username}`);
+  } catch (error) {
+    console.error('Error checking badges:', error);
+  }
 }
 
 // Score all predictions for a specific storm and timeframe
@@ -149,6 +391,9 @@ async function scorePredictions(stormId, timeframe, actualData) {
          WHERE id = $6`,
         [totalScore, actualData.lat, actualData.lon, actualData.windSpeed, actualData.pressure, pred.id]
       );
+
+      // Check and award badges
+      await checkAndAwardBadges(pred.username, { ...pred, score: totalScore });
 
       console.log(`  âœ“ ${pred.username}: ${totalScore} pts (Track: ${trackScore}, Intensity: ${intensityScore}, Distance: ${distanceError.toFixed(1)} NM)`);
     }
@@ -642,6 +887,82 @@ app.post('/api/admin/score/:stormId/:timeframe', async (req, res) => {
   } catch (error) {
     console.error('Error in manual scoring:', error);
     res.status(500).json({ error: 'Failed to score predictions' });
+  }
+});
+
+// ============================================
+// BADGE API ENDPOINTS
+// ============================================
+
+// Get user's badges
+app.get('/api/user/:username/badges', async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    const result = await pool.query(
+      `SELECT ub.*, bd.name, bd.description, bd.icon, bd.tier, bd.category, bd.points_value
+       FROM user_badges ub
+       JOIN badge_definitions bd ON ub.badge_id = bd.badge_id
+       WHERE ub.username = $1
+       ORDER BY ub.earned_at DESC`,
+      [username]
+    );
+    
+    res.json({
+      username,
+      badges: result.rows,
+      total_badges: result.rows.length
+    });
+  } catch (error) {
+    console.error('Error fetching badges:', error);
+    res.status(500).json({ error: 'Failed to fetch badges' });
+  }
+});
+
+// Get all badge definitions
+app.get('/api/badges/definitions', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM badge_definitions ORDER BY category, tier, name`
+    );
+    
+    res.json({
+      badges: result.rows,
+      total: result.rows.length
+    });
+  } catch (error) {
+    console.error('Error fetching badge definitions:', error);
+    res.status(500).json({ error: 'Failed to fetch badge definitions' });
+  }
+});
+
+// Get badge progress for user
+app.get('/api/user/:username/badge-progress', async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    const stats = await pool.query(
+      `SELECT 
+        COUNT(*) as total_predictions,
+        SUM(COALESCE(score, 0)) as total_score,
+        COUNT(DISTINCT storm_id) as unique_storms
+       FROM predictions 
+       WHERE username = $1`,
+      [username]
+    );
+    
+    const progress = {
+      milestones: {
+        predictions: parseInt(stats.rows[0].total_predictions || 0),
+        points: parseInt(stats.rows[0].total_score || 0),
+        storms: parseInt(stats.rows[0].unique_storms || 0)
+      }
+    };
+    
+    res.json({ username, progress });
+  } catch (error) {
+    console.error('Error fetching badge progress:', error);
+    res.status(500).json({ error: 'Failed to fetch progress' });
   }
 });
 
