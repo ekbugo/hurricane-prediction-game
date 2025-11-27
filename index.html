@@ -32,6 +32,41 @@
             border-bottom: 3px solid #3B82F6;
             color: #3B82F6;
         }
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.5rem;
+            z-index: 1000;
+        }
+        .loading-message {
+            font-size: 1.25rem;
+            color: white;
+            font-weight: 600;
+            margin: 0.5rem 0;
+            opacity: 0;
+            animation: fadeInOut 2s ease-in-out infinite;
+        }
+        .loading-message:nth-child(1) {
+            animation-delay: 0s;
+        }
+        .loading-message:nth-child(2) {
+            animation-delay: 0.6s;
+        }
+        .loading-message:nth-child(3) {
+            animation-delay: 1.2s;
+        }
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; transform: translateY(10px); }
+            50% { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-blue-100 min-h-screen">
@@ -55,6 +90,7 @@
             });
             const [view, setView] = useState('predict');
             const [map, setMap] = useState(null);
+            const [mapLoading, setMapLoading] = useState(true);
             const [loading, setLoading] = useState(true);
             
             // Leaderboard state
@@ -157,17 +193,24 @@
                 if (!mapElement || typeof L === 'undefined') return;
                 
                 try {
+                    setMapLoading(true);
                     const newMap = L.map('map').setView([25.0, -80.0], 5);
                     
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                         attribution: '© OpenStreetMap contributors',
                         maxZoom: 10,
                         minZoom: 3
                     }).addTo(newMap);
+                    
+                    // Hide loading overlay when tiles are loaded
+                    tileLayer.on('load', () => {
+                        setTimeout(() => setMapLoading(false), 500); // Small delay for smooth transition
+                    });
 
                     setMap(newMap);
                 } catch (error) {
                     console.error('Error initializing map:', error);
+                    setMapLoading(false);
                 }
             }, [map, gameState]);
 
@@ -739,7 +782,16 @@
                     {/* Map */}
                     <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
                         <h2 className="text-xl font-bold text-gray-800 mb-4">Storm Track</h2>
-                        <div id="map"></div>
+                        <div style={{position: 'relative'}}>
+                            <div id="map"></div>
+                            {mapLoading && (
+                                <div className="loading-overlay">
+                                    <div className="loading-message">🌀 Loading hurricane data...</div>
+                                    <div className="loading-message">🗺️ Preparing map tiles...</div>
+                                    <div className="loading-message">📊 Fetching predictions...</div>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     {/* Main Content */}
