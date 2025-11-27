@@ -28,9 +28,9 @@ function loadStorms() {
     const stormsData = fs.readFileSync(stormsPath, 'utf8');
     const parsed = JSON.parse(stormsData);
     HISTORICAL_STORMS = parsed.storms;
-    console.log(`âœ… Loaded ${HISTORICAL_STORMS.length} historical storms from storms.json`);
+    console.log(`Loaded ${HISTORICAL_STORMS.length} historical storms from storms.json`);
   } catch (error) {
-    console.error('âš ï¸ Error loading storms.json:', error.message);
+    console.error('Error loading storms.json:', error.message);
     HISTORICAL_STORMS = [];
   }
 }
@@ -68,9 +68,9 @@ async function initializeDatabase() {
       CREATE INDEX IF NOT EXISTS idx_username_storm ON predictions(username, storm_id);
     `);
     
-    console.log('âœ… Database table ready (existing data preserved)');
+    console.log('Database table ready (existing data preserved)');
   } catch (error) {
-    console.error('âš ï¸ Error initializing database:', error.message);
+    console.error('Error initializing database:', error.message);
   }
 }
 
@@ -360,7 +360,7 @@ async function scorePredictions(stormId, timeframe, actualData) {
       [stormId, timeframe]
     );
 
-    console.log(`ðŸ“Š Scoring ${predictions.rows.length} predictions for ${stormId} ${timeframe}`);
+    console.log(`📊 Scoring ${predictions.rows.length} predictions for ${stormId} ${timeframe}`);
 
     for (const pred of predictions.rows) {
       // Calculate distance error
@@ -395,10 +395,10 @@ async function scorePredictions(stormId, timeframe, actualData) {
       // Check and award badges
       await checkAndAwardBadges(pred.username, { ...pred, score: totalScore });
 
-      console.log(`  âœ“ ${pred.username}: ${totalScore} pts (Track: ${trackScore}, Intensity: ${intensityScore}, Distance: ${distanceError.toFixed(1)} NM)`);
+      console.log(`  ${pred.username}: ${totalScore} pts (Track: ${trackScore}, Intensity: ${intensityScore}, Distance: ${distanceError.toFixed(1)} NM)`);
     }
 
-    console.log(`âœ… Scoring complete for ${stormId} ${timeframe}`);
+    console.log(`Scoring complete for ${stormId} ${timeframe}`);
   } catch (error) {
     console.error('Error scoring predictions:', error);
   }
@@ -576,7 +576,7 @@ app.post('/api/predictions', async (req, res) => {
       [predictionId, username, stormId, timeframe, lat, lon, windSpeed, pressure]
     );
     
-    console.log(`ðŸ’¾ Saved prediction: ${username} - ${stormId} - ${timeframe}`);
+    console.log(`👤 Saved prediction: ${username} - ${stormId} - ${timeframe}`);
     
     res.status(201).json({
       success: true,
@@ -968,7 +968,7 @@ app.get('/api/user/:username/badge-progress', async (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`ðŸŒ€ Hurricane Prediction Game API running on port ${PORT}`);
-  console.log(`ðŸ“Š Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`ðŸ—„ï¸  Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
+  console.log(`🌀 Hurricane Prediction Game API running on port ${PORT}`);
+  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📊📊 Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
 });
