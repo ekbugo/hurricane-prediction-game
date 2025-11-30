@@ -297,7 +297,7 @@
                     });
                     
                     L.marker([tf.lat, tf.lon], { icon }).addTo(map)
-                        .bindPopup(`<strong>${tf.timeframe} ${tf.type === 'base' ? '(Base)' : '(Actual)'}</strong><br>Cat ${tf.category}<br>${tf.windSpeed} mph<br>${tf.pressure} mb`);
+                        .bindPopup(`<strong>${tf.timeframe} ${tf.type === 'base' ? '(Base)' : '(Actual)'}</strong><br>Lat: ${tf.lat}, Lon: ${tf.lon}<br>${tf.windSpeed} mph<br>${tf.pressure} mb`);
                 });
 
                 if (userPredictions && userPredictions.length > 0) {
