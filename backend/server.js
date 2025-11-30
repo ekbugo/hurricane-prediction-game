@@ -208,6 +208,42 @@ async function initializeBadgeTables() {
 
 initializeBadgeTables();
 
+// ============================================
+// USER PROFILE SYSTEM - AUTO INITIALIZATION
+// ============================================
+
+async function initializeUserProfileTable() {
+  try {
+    console.log('🔄 Initializing user profile table...');
+
+    // Create users table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(100) UNIQUE NOT NULL,
+        display_name VARCHAR(100),
+        avatar_url TEXT,
+        bio TEXT,
+        location VARCHAR(200),
+        preferred_style VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    console.log('✅ users table ready');
+
+    // Create indexes
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`);
+
+    console.log('✅ User profile system initialization complete!');
+  } catch (error) {
+    console.error('❌ Error initializing user profile table:', error);
+  }
+}
+
+initializeUserProfileTable();
+
 // Calculate great-circle distance between two points (Haversine formula)
 // Returns distance in nautical miles
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -940,17 +976,17 @@ app.get('/api/badges/definitions', async (req, res) => {
 app.get('/api/user/:username/badge-progress', async (req, res) => {
   try {
     const { username } = req.params;
-    
+
     const stats = await pool.query(
-      `SELECT 
+      `SELECT
         COUNT(*) as total_predictions,
         SUM(COALESCE(score, 0)) as total_score,
         COUNT(DISTINCT storm_id) as unique_storms
-       FROM predictions 
+       FROM predictions
        WHERE username = $1`,
       [username]
     );
-    
+
     const progress = {
       milestones: {
         predictions: parseInt(stats.rows[0].total_predictions || 0),
@@ -958,11 +994,277 @@ app.get('/api/user/:username/badge-progress', async (req, res) => {
         storms: parseInt(stats.rows[0].unique_storms || 0)
       }
     };
-    
+
     res.json({ username, progress });
   } catch (error) {
     console.error('Error fetching badge progress:', error);
     res.status(500).json({ error: 'Failed to fetch progress' });
+  }
+});
+
+// ============================================
+// USER PROFILE API ENDPOINTS
+// ============================================
+
+// Get user profile
+app.get('/api/profile/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+
+    // Get profile data
+    const profileResult = await pool.query(
+      `SELECT * FROM users WHERE username = $1`,
+      [username]
+    );
+
+    // If profile doesn't exist, create a default one
+    if (profileResult.rows.length === 0) {
+      await pool.query(
+        `INSERT INTO users (username, display_name) VALUES ($1, $1) RETURNING *`,
+        [username]
+      );
+
+      const newProfile = await pool.query(
+        `SELECT * FROM users WHERE username = $1`,
+        [username]
+      );
+
+      return res.json({
+        profile: newProfile.rows[0],
+        predictionStyle: await calculatePredictionStyle(username)
+      });
+    }
+
+    res.json({
+      profile: profileResult.rows[0],
+      predictionStyle: await calculatePredictionStyle(username)
+    });
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
+// Update user profile
+app.put('/api/profile/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const { display_name, avatar_url, bio, location } = req.body;
+
+    // Check if profile exists
+    const existingProfile = await pool.query(
+      `SELECT * FROM users WHERE username = $1`,
+      [username]
+    );
+
+    if (existingProfile.rows.length === 0) {
+      // Create new profile
+      const result = await pool.query(
+        `INSERT INTO users (username, display_name, avatar_url, bio, location, updated_at)
+         VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+         RETURNING *`,
+        [username, display_name || username, avatar_url, bio, location]
+      );
+
+      return res.json({
+        success: true,
+        profile: result.rows[0]
+      });
+    }
+
+    // Update existing profile
+    const result = await pool.query(
+      `UPDATE users
+       SET display_name = COALESCE($2, display_name),
+           avatar_url = COALESCE($3, avatar_url),
+           bio = COALESCE($4, bio),
+           location = COALESCE($5, location),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE username = $1
+       RETURNING *`,
+      [username, display_name, avatar_url, bio, location]
+    );
+
+    res.json({
+      success: true,
+      profile: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// Calculate prediction style statistics
+async function calculatePredictionStyle(username) {
+  try {
+    // Get all scored predictions for the user
+    const predictions = await pool.query(
+      `SELECT
+        predicted_lat, predicted_lon, predicted_wind_speed, predicted_pressure,
+        actual_lat, actual_lon, actual_wind_speed, actual_pressure,
+        score, timeframe
+       FROM predictions
+       WHERE username = $1 AND score IS NOT NULL
+       ORDER BY submitted_at ASC`,
+      [username]
+    );
+
+    if (predictions.rows.length === 0) {
+      return {
+        totalPredictions: 0,
+        style: 'Unknown',
+        trackAccuracy: 'N/A',
+        intensityAccuracy: 'N/A',
+        avgDistance: 0,
+        avgWindError: 0,
+        avgPressureError: 0,
+        favoriteTimeframe: 'N/A',
+        tendencies: {
+          trackBias: 'neutral',
+          intensityBias: 'neutral',
+          consistency: 'N/A'
+        }
+      };
+    }
+
+    // Calculate average errors
+    let totalDistance = 0;
+    let totalWindError = 0;
+    let totalPressureError = 0;
+    let trackScores = 0;
+    let intensityScores = 0;
+    const timeframeCounts = { '0600': 0, '1200': 0, '1800': 0, '0000': 0 };
+
+    let latBias = 0; // positive = north bias, negative = south bias
+    let lonBias = 0; // positive = east bias, negative = west bias
+    let windBias = 0; // positive = overpredict, negative = underpredict
+    let pressureBias = 0;
+
+    predictions.rows.forEach(pred => {
+      // Calculate distance
+      const distance = calculateDistance(
+        pred.predicted_lat, pred.predicted_lon,
+        pred.actual_lat, pred.actual_lon
+      );
+      totalDistance += distance;
+
+      // Calculate errors
+      const windError = Math.abs(pred.predicted_wind_speed - pred.actual_wind_speed);
+      const pressureError = Math.abs(pred.predicted_pressure - pred.actual_pressure);
+      totalWindError += windError;
+      totalPressureError += pressureError;
+
+      // Track vs Intensity performance
+      const trackScore = calculateTrackScore(distance);
+      const intensityScore = calculateIntensityScore(windError, pressureError);
+      trackScores += trackScore;
+      intensityScores += intensityScore;
+
+      // Calculate biases
+      latBias += (pred.predicted_lat - pred.actual_lat);
+      lonBias += (pred.predicted_lon - pred.actual_lon);
+      windBias += (pred.predicted_wind_speed - pred.actual_wind_speed);
+      pressureBias += (pred.predicted_pressure - pred.actual_pressure);
+
+      // Timeframe counts
+      if (timeframeCounts.hasOwnProperty(pred.timeframe)) {
+        timeframeCounts[pred.timeframe]++;
+      }
+    });
+
+    const count = predictions.rows.length;
+    const avgDistance = totalDistance / count;
+    const avgWindError = totalWindError / count;
+    const avgPressureError = totalPressureError / count;
+    const avgTrackScore = trackScores / count;
+    const avgIntensityScore = intensityScores / count;
+
+    // Determine prediction style
+    let style = 'Balanced';
+    if (avgTrackScore > avgIntensityScore + 100) {
+      style = 'Track Specialist';
+    } else if (avgIntensityScore > avgTrackScore + 100) {
+      style = 'Intensity Expert';
+    } else if (avgTrackScore > 800 && avgIntensityScore > 800) {
+      style = 'Elite Forecaster';
+    } else if (avgTrackScore < 600 && avgIntensityScore < 600) {
+      style = 'Developing';
+    }
+
+    // Determine accuracy ratings
+    const trackAccuracy = avgDistance < 50 ? 'Excellent' :
+                         avgDistance < 100 ? 'Good' :
+                         avgDistance < 150 ? 'Fair' : 'Developing';
+
+    const intensityAccuracy = avgWindError < 10 ? 'Excellent' :
+                             avgWindError < 20 ? 'Good' :
+                             avgWindError < 30 ? 'Fair' : 'Developing';
+
+    // Find favorite timeframe
+    const favoriteTimeframe = Object.keys(timeframeCounts).reduce((a, b) =>
+      timeframeCounts[a] > timeframeCounts[b] ? a : b
+    );
+
+    // Determine tendencies
+    const trackBias = Math.abs(latBias / count) < 0.5 && Math.abs(lonBias / count) < 0.5 ? 'neutral' :
+                     latBias / count > 0.5 ? 'north bias' :
+                     latBias / count < -0.5 ? 'south bias' : 'neutral';
+
+    const intensityBias = windBias / count > 5 ? 'overestimates intensity' :
+                         windBias / count < -5 ? 'underestimates intensity' : 'neutral';
+
+    // Calculate consistency (standard deviation of scores)
+    const scores = predictions.rows.map(p => p.score);
+    const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+    const variance = scores.reduce((sum, score) => sum + Math.pow(score - avgScore, 2), 0) / scores.length;
+    const stdDev = Math.sqrt(variance);
+
+    const consistency = stdDev < 150 ? 'Very Consistent' :
+                       stdDev < 250 ? 'Consistent' :
+                       stdDev < 350 ? 'Variable' : 'Inconsistent';
+
+    return {
+      totalPredictions: count,
+      style,
+      trackAccuracy,
+      intensityAccuracy,
+      avgDistance: Math.round(avgDistance * 10) / 10,
+      avgWindError: Math.round(avgWindError * 10) / 10,
+      avgPressureError: Math.round(avgPressureError * 10) / 10,
+      avgTrackScore: Math.round(avgTrackScore),
+      avgIntensityScore: Math.round(avgIntensityScore),
+      favoriteTimeframe,
+      timeframeCounts,
+      tendencies: {
+        trackBias,
+        intensityBias,
+        consistency
+      }
+    };
+  } catch (error) {
+    console.error('Error calculating prediction style:', error);
+    return {
+      totalPredictions: 0,
+      style: 'Unknown',
+      error: error.message
+    };
+  }
+}
+
+// Get prediction style stats for a user
+app.get('/api/user/:username/prediction-style', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const predictionStyle = await calculatePredictionStyle(username);
+
+    res.json({
+      username,
+      predictionStyle
+    });
+  } catch (error) {
+    console.error('Error fetching prediction style:', error);
+    res.status(500).json({ error: 'Failed to fetch prediction style' });
   }
 });
 
